@@ -11,10 +11,9 @@ assert not repo.bare, "This directory is a bare repo, please clone a project to 
 
 
 def add(branch):
-    sh.git.config("--add", "releases.brnaches", branch)
+    sh.git.config("--add", "releases.branches", branch)
 
 
-# -- remove all the branches from the release
 def clearbranches():
     # git config --unset-all releases.branches
     sh.git.config("--local", "--unset-all", "releases.branches")
@@ -71,6 +70,42 @@ def init():
     sh.git.config("--local", "--replace-all", "releases.current", "release-v" + releaseVersion)
 
     clearbranches()
+
+
+def roll():
+    nextReleaseBranch = getNextReleaseBranch()
+
+    sh.git.fetch("--all")
+
+    print("Creating " + nextReleaseBranch + "...")
+
+    # Change this so that "master" is configurable
+    sh.git.checkout("-b", nextReleaseBranch, "master")
+
+    branches = sh.git.config("--local", "--get-all", "releases.branches")
+    mergeBranches(branches)
+
+
+def mergeBranches(branches):
+    sh.git.fetch("--all")
+
+    for branch in branches:
+        print("Merging: " + branch + " ++++++++++++++++++++++++")
+        sh.git.merge("--no-edit", "--squash", branch)
+
+
+def getCurrent():
+    return str(sh.git.config("--local", "--get", "releases.current").strip())
+
+
+def getCandidate():
+    return int(sh.git.config("--local", "--get", "releases.candidate").strip())
+
+
+def getNextReleaseBranch():
+    current = getCurrent()
+    candidate = getCandidate()
+    return "{current}-rc{candidate}".format(current=current, candidate=candidate+1)
 
 
 def main(argv):

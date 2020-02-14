@@ -3,8 +3,9 @@
 import git
 from git import Repo
 import os
-import sys
 import sh
+import subprocess
+import sys
 
 repo = Repo(os.getcwd())
 assert not repo.bare, "This directory is a bare repo, please clone a project to work with"
@@ -58,7 +59,7 @@ def findFeature():
 
 
 def init():
-    releaseVersion = raw_input("Enter Release Version (e.g. 16_07 or 1.0.0):")
+    releaseVersion = input("Enter Release Version (e.g. 16_07 or 1.0.0):")
     releaseVersion = releaseVersion.strip()
     assert releaseVersion, "Release Version is required"
     sh.git.config("--local", "--replace-all", "releases.version", releaseVersion)
@@ -73,26 +74,84 @@ def init():
 
 
 def roll():
-    nextReleaseBranch = getNextReleaseBranch()
+    nextReleaseCandidate = getNextReleaseCandidate()
 
     sh.git.fetch("--all")
 
-    print("Creating " + nextReleaseBranch + "...")
+    print("Creating " + nextReleaseCandidate + " ...")
 
     # Change this so that "master" is configurable
-    sh.git.checkout("-b", nextReleaseBranch, "master")
+    sh.git.checkout("-b", nextReleaseCandidate, "master")
 
-    branches = sh.git.config("--local", "--get-all", "releases.branches")
+    result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
+    branches = result.stdout.decode('utf-8').splitlines()
+
     mergeBranches(branches)
+    incrementCandidate()
+
+
+    hasConflicts = findConflicts()
+    if hasConflicts:
+        print("Not pushing to origin")
+    else:
+        print("Pushing to origin")
+        print("git push origin " + nextReleaseCandidate)
+        sh.git.push("origin", nextReleaseCandidate)
+
+
+def next():
+    currentReleaseCandidate = getCurrentReleaseCandidate()
+    nextReleaseCandidate = getNextReleaseCandidate()
+
+    sh.git.fetch("--all")
+
+    print("Creating " + nextReleaseCandidate + " ...")
+
+    # Change this so that "master" is configurable
+    sh.git.checkout("-b", nextReleaseCandidate, currentReleaseCandidate)
+
+    result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
+    branches = result.stdout.decode('utf-8').splitlines()
+
+    mergeBranches(branches)
+    incrementCandidate()
+
+    hasConflicts = findConflicts()
+    if hasConflicts:
+        print("Not pushing to origin")
+    else:
+        print("Pushing to origin")
+        print("git push origin " + nextReleaseCandidate)
+        sh.git.push("origin", nextReleaseCandidate)
 
 
 def mergeBranches(branches):
     sh.git.fetch("--all")
 
     for branch in branches:
+        branch = branch.strip()
         print("Merging: " + branch + " ++++++++++++++++++++++++")
-        sh.git.merge("--no-edit", "--squash", branch)
+        sh.git.merge("--squash", branch)
+        try:
+            sh.git.commit("--no-edit", "-m", "Squash merge: {branch}".format(branch=branch))
+            
 
+
+def findConflicts():
+    print("Looking for conflicts with merge.")
+    result = subprocess.run(['git', 'diff', '--name-only', '--diff-filter=U'], stdout=subprocess.PIPE)
+    conflicts = result.stdout.decode('utf-8')
+
+    if conflicts:
+        return True
+    else:
+        return False
+
+
+def incrementCandidate():
+    candidate = getCandidate()
+    candidate += 1
+    sh.git.config("--local", "--replace-all", "releases.candidate", candidate)
 
 def getCurrent():
     return str(sh.git.config("--local", "--get", "releases.current").strip())
@@ -102,7 +161,13 @@ def getCandidate():
     return int(sh.git.config("--local", "--get", "releases.candidate").strip())
 
 
-def getNextReleaseBranch():
+def getCurrentReleaseCandidate():
+    current = getCurrent()
+    candidate = getCandidate()
+    return "{current}-rc{candidate}".format(current=current, candidate=candidate)
+
+
+def getNextReleaseCandidate():
     current = getCurrent()
     candidate = getCandidate()
     return "{current}-rc{candidate}".format(current=current, candidate=candidate+1)

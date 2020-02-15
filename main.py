@@ -2,10 +2,13 @@
 
 import git
 from git import Repo
+import json
 import os
+import requests
 import sh
 import subprocess
 import sys
+import utility
 
 repo = Repo(os.getcwd())
 assert not repo.bare, "This directory is a bare repo, please clone a project to work with"
@@ -59,18 +62,30 @@ def findFeature():
 
 
 def init():
-    releaseVersion = input("Enter Release Version (e.g. 16_07 or 1.0.0):")
+    projectslug = input("Enter the project slug: ")
+    projectslug = projectslug.strip()
+
+    #if slugExists(projectslug):
+    #    print("That slug already exists")
+    #    # TODO: Implement a confirmation here
+
+    sh.git.config("--local", "--replace-all", "releases.projectslug", projectslug)
+
+    releaseVersion = input("Enter Release Version (e.g. 16_07 or 1.0.0): ")
     releaseVersion = releaseVersion.strip()
     assert releaseVersion, "Release Version is required"
     sh.git.config("--local", "--replace-all", "releases.version", releaseVersion)
 
     releaseCandidate = 0
-    input("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1):")
+    input("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1): ")
     sh.git.config("--local", "--replace-all", "releases.candidate", releaseCandidate)
 
     sh.git.config("--local", "--replace-all", "releases.current", "release-v" + releaseVersion)
 
-    clearbranches()
+    #clearbranches()
+
+    # Write release to API
+    writeRelease()
 
 
 def roll():
@@ -81,14 +96,17 @@ def roll():
     print("Creating " + nextReleaseCandidate + " ...")
 
     # Change this so that "master" is configurable
-    sh.git.checkout("-b", nextReleaseCandidate, "master")
+    try:
+        sh.git.checkout("-b", nextReleaseCandidate, "master", _err=sys.stderr)
+        incrementCandidate()
+        writeRelease()
+    except sh.ErrorReturnCode_128:
+        sys.exit()
 
     result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
     branches = result.stdout.decode('utf-8').splitlines()
 
     mergeBranches(branches)
-    incrementCandidate()
-
 
     hasConflicts = findConflicts()
     if hasConflicts:
@@ -96,7 +114,7 @@ def roll():
     else:
         print("Pushing to origin")
         print("git push origin " + nextReleaseCandidate)
-        sh.git.push("origin", nextReleaseCandidate)
+        #sh.git.push("origin", nextReleaseCandidate)
 
 
 def next():
@@ -108,13 +126,17 @@ def next():
     print("Creating " + nextReleaseCandidate + " ...")
 
     # Change this so that "master" is configurable
-    sh.git.checkout("-b", nextReleaseCandidate, currentReleaseCandidate)
+    try:
+        sh.git.checkout("-b", nextReleaseCandidate, currentReleaseCandidate, _err=sys.stderr)
+        incrementCandidate()
+        writeRelease()
+    except sh.ErrorReturnCode_128:
+        sys.exit()
 
     result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
     branches = result.stdout.decode('utf-8').splitlines()
 
     mergeBranches(branches)
-    incrementCandidate()
 
     hasConflicts = findConflicts()
     if hasConflicts:
@@ -122,7 +144,7 @@ def next():
     else:
         print("Pushing to origin")
         print("git push origin " + nextReleaseCandidate)
-        sh.git.push("origin", nextReleaseCandidate)
+        #sh.git.push("origin", nextReleaseCandidate)
 
 
 def mergeBranches(branches):
@@ -130,11 +152,12 @@ def mergeBranches(branches):
 
     for branch in branches:
         branch = branch.strip()
-        print("Merging: " + branch + " ++++++++++++++++++++++++")
-        sh.git.merge("--squash", branch)
+        print()
+        print("Merging: " + branch)
         try:
-            sh.git.commit("--no-edit", "-m", "Squash merge: {branch}".format(branch=branch))
-            
+            sh.git.merge("--no-ff", "--no-edit", branch, _err=sys.stderr, _out=sys.stdout)
+        except sh.ErrorReturnCode_1:
+            return
 
 
 def findConflicts():
@@ -173,9 +196,36 @@ def getNextReleaseCandidate():
     return "{current}-rc{candidate}".format(current=current, candidate=candidate+1)
 
 
+def writeRelease():
+    releases_dict = utility.getRelease()
+    print()
+    print(json.dumps(releases_dict, indent=4, sort_keys=True))
+
+    response = requests.post('https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/release',
+                             data=json.dumps(releases_dict),
+                             headers={'Content-Type': 'application/json'})
+
+    if response.status_code != 200:
+        # Replace this with raise error
+        print("ApiCall Error")
+
+
+def slugExists(projectslug):
+    response = requests.get('https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{:s}'.format(projectslug))
+    if response.status_code != 200:
+        # Replace this with raise error
+        print("ApiCall Error")
+
+    if "projectslug" in response.json()["item"]:
+        return True
+    else:
+        return False
+
+
 def main(argv):
     method = argv[1]+"()"
     exec(method)
+
 
 if __name__ == "__main__":
     main(sys.argv)

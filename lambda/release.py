@@ -1,9 +1,9 @@
-import json
-
+from ast import literal_eval
 import boto3
-import decimal
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
+import decimal
+import json
 
 
 def post_handler(event, context):
@@ -32,8 +32,9 @@ def post_handler(event, context):
     table = dynamodb.Table('Releases')
     release_dict = event["body"]
 
-    print(type(release_dict))
-    print(release_dict)
+    # When input comes from API Gateway event["body"] is a string so we need to cast it to dictionary
+    if not isinstance(release_dict, dict):
+        release_dict = literal_eval(release_dict)
 
     try:
         response = table.put_item(Item=release_dict)

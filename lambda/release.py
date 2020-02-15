@@ -31,6 +31,7 @@ def post_handler(event, context):
     dynamodb = boto3.resource('dynamodb', region_name='us-west-1')
     table = dynamodb.Table('Releases')
     release_dict = event["body"]
+
     print(type(release_dict))
     print(release_dict)
 

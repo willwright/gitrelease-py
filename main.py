@@ -69,6 +69,7 @@ def init():
     #    print("That slug already exists")
     #    # TODO: Implement a confirmation here
 
+
     sh.git.config("--local", "--replace-all", "releases.projectslug", projectslug)
 
     releaseVersion = input("Enter Release Version (e.g. 16_07 or 1.0.0): ")
@@ -85,10 +86,11 @@ def init():
     #clearbranches()
 
     # Write release to API
-    writeRelease()
+    writerelease()
 
 
 def roll():
+
     nextReleaseCandidate = getNextReleaseCandidate()
 
     sh.git.fetch("--all")
@@ -99,7 +101,7 @@ def roll():
     try:
         sh.git.checkout("-b", nextReleaseCandidate, "master", _err=sys.stderr)
         incrementCandidate()
-        writeRelease()
+        writerelease()
     except sh.ErrorReturnCode_128:
         sys.exit()
 
@@ -114,7 +116,7 @@ def roll():
     else:
         print("Pushing to origin")
         print("git push origin " + nextReleaseCandidate)
-        #sh.git.push("origin", nextReleaseCandidate)
+        sh.git.push("origin", nextReleaseCandidate)
 
 
 def next():
@@ -129,7 +131,7 @@ def next():
     try:
         sh.git.checkout("-b", nextReleaseCandidate, currentReleaseCandidate, _err=sys.stderr)
         incrementCandidate()
-        writeRelease()
+        writerelease()
     except sh.ErrorReturnCode_128:
         sys.exit()
 
@@ -184,6 +186,14 @@ def getCandidate():
     return int(sh.git.config("--local", "--get", "releases.candidate").strip())
 
 
+def getprojectslug():
+    return int(sh.git.config("--local", "--get", "releases.projectslug").strip())
+
+
+def getversion():
+    return int(sh.git.config("--local", "--get", "releases.version").strip())
+
+
 def getCurrentReleaseCandidate():
     current = getCurrent()
     candidate = getCandidate()
@@ -196,10 +206,25 @@ def getNextReleaseCandidate():
     return "{current}-rc{candidate}".format(current=current, candidate=candidate+1)
 
 
-def writeRelease():
-    releases_dict = utility.getRelease()
-    print()
-    print(json.dumps(releases_dict, indent=4, sort_keys=True))
+def readrelease():
+    projectslug = getprojectslug()
+    version = getversion()
+    response = requests.get("https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}/release/{1}".format(projectslug, version))
+
+    if response.status_code != 200:
+        # Replace this with raise error
+        print("ApiCall Error")
+
+    if response.json():
+        utility.write_release(response.json())
+    else:
+        return False
+
+def writerelease():
+    releases_dict = utility.read_config()
+
+    #print()
+    #print(json.dumps(releases_dict, indent=4, sort_keys=True))
 
     response = requests.post('https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/release',
                              data=json.dumps(releases_dict),

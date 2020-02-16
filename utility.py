@@ -2,7 +2,7 @@ import json
 import subprocess
 
 
-def getRelease():
+def read_config():
     result = subprocess.run(['git', 'config', '--local', '--get-regex', 'releases'], stdout=subprocess.PIPE)
     releasesList = result.stdout.decode('utf-8')
     releasesList = releasesList.splitlines()
@@ -23,3 +23,16 @@ def getRelease():
             releasesDict[item[0].replace("releases.", "")] = item[1]
 
     return releasesDict
+
+
+def write_release(release_json):
+    result = subprocess.run(['git', 'config', '--local', '--get-regex', 'releases'], stdout=subprocess.PIPE)
+
+    for item in json.loads(release_json):
+        if item == "branches":
+            # write branches to config9
+        else:
+            # write option to config
+
+
+    return

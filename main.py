@@ -1,14 +1,14 @@
 #!/usr/bin/python
 
 import git
+import api
+import config
 from git import Repo
-import json
 import os
-import requests
 import sh
 import subprocess
 import sys
-import utility
+import config
 
 repo = Repo(os.getcwd())
 assert not repo.bare, "This directory is a bare repo, please clone a project to work with"
@@ -62,35 +62,41 @@ def findFeature():
 
 
 def init():
+    """
+
+    :rtype: object
+    """
+    release_dict = config.read_config()
     projectslug = input("Enter the project slug: ")
-    projectslug = projectslug.strip()
+    release_dict["projectslug"] = projectslug.strip()
 
     #if slugExists(projectslug):
     #    print("That slug already exists")
     #    # TODO: Implement a confirmation here
 
+    release_version = input("Enter Release Version (e.g. 16_07 or 1.0.0): ")
+    release_version = release_version.strip()
+    assert release_version, "Release Version is required"
+    release_dict["version"] = release_version
+    release_dict["current"] = "release-v" + release_version
 
-    sh.git.config("--local", "--replace-all", "releases.projectslug", projectslug)
-
-    releaseVersion = input("Enter Release Version (e.g. 16_07 or 1.0.0): ")
-    releaseVersion = releaseVersion.strip()
-    assert releaseVersion, "Release Version is required"
-    sh.git.config("--local", "--replace-all", "releases.version", releaseVersion)
-
-    releaseCandidate = 0
-    input("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1): ")
-    sh.git.config("--local", "--replace-all", "releases.candidate", releaseCandidate)
-
-    sh.git.config("--local", "--replace-all", "releases.current", "release-v" + releaseVersion)
+    release_candidate = 0
+    release_candidate = input("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1): ")
+    release_dict["candidate"] = release_candidate
 
     #clearbranches()
 
-    # Write release to API
-    writerelease()
+    # Write release to config
+    config.write_release(release_dict)
 
+    # Write release to API
+    api.writerelease(release_dict)
+
+
+def checkout():
+    
 
 def roll():
-
     nextReleaseCandidate = getNextReleaseCandidate()
 
     sh.git.fetch("--all")
@@ -204,47 +210,6 @@ def getNextReleaseCandidate():
     current = getCurrent()
     candidate = getCandidate()
     return "{current}-rc{candidate}".format(current=current, candidate=candidate+1)
-
-
-def readrelease():
-    projectslug = getprojectslug()
-    version = getversion()
-    response = requests.get("https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}/release/{1}".format(projectslug, version))
-
-    if response.status_code != 200:
-        # Replace this with raise error
-        print("ApiCall Error")
-
-    if response.json():
-        utility.write_release(response.json())
-    else:
-        return False
-
-def writerelease():
-    releases_dict = utility.read_config()
-
-    #print()
-    #print(json.dumps(releases_dict, indent=4, sort_keys=True))
-
-    response = requests.post('https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/release',
-                             data=json.dumps(releases_dict),
-                             headers={'Content-Type': 'application/json'})
-
-    if response.status_code != 200:
-        # Replace this with raise error
-        print("ApiCall Error")
-
-
-def slugExists(projectslug):
-    response = requests.get('https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{:s}'.format(projectslug))
-    if response.status_code != 200:
-        # Replace this with raise error
-        print("ApiCall Error")
-
-    if "projectslug" in response.json()["item"]:
-        return True
-    else:
-        return False
 
 
 def main(argv):

@@ -5,6 +5,7 @@ import api
 import config
 from git import Repo
 import os
+import re
 import sh
 import subprocess
 import sys
@@ -24,41 +25,58 @@ def clearbranches():
 
 
 def feature():
-    branch = findFeature()
-    add(branch)
+    branch = find_feature()
+    if branch:
+        add(branch)
+        print("Send to JIRA [yes]? yes/no")
+        jira_send = bool(input()) or "yes"
+        if jira_send == "yes":
+            jira_send = True
+        elif jira_send == "no":
+            jira_send = False
+        else:
+            jira_send = False
 
+        if jira_send:
+            jira_key = parse_jira_key(branch)
+            release_dict = config.read_config()
+            api.zapier_POST(jira_key, release_dict["version"])
 
-def findFeature():
+    return
+
+def find_feature():
     print("Find a branch by type, or search for it by name: ")
     print("0 Search by name")
     print("1 List all feature/ branches")
     print("2 List all bugfix/ branches")
     print("3 List all hotfix/ branches")
-    searchType = input()
+    search_type = int(input())
 
-    if searchType == 0:
-        featureQuery = input("Enter part of a Feature Branch name: (we will search for it) ")
-    elif searchType == 1:
-        featureQuery = "feature/"
-    elif searchType == 2:
-        featureQuery = "bugfix/"
-    elif searchType == 3:
-        featureQuery = "hotfix/"
+    feature_query = ""
+    if search_type == 0:
+        feature_query = input("Enter part of a Feature Branch name: (we will search for it) ")
+    elif search_type == 1:
+        feature_query = "feature/"
+    elif search_type == 2:
+        feature_query = "bugfix/"
+    elif search_type == 3:
+        feature_query = "hotfix/"
 
-    ffBranches = filter(lambda x: featureQuery in x.name, repo.branches)
+    # TODO: Make sure this is checking remotes as well as locals
+    ff_branches = list(filter(lambda x: feature_query in x.name, repo.branches))
 
-    assert len(ffBranches) > 0, "No branches found matching your query"
+    assert len(ff_branches) > 0, "No branches found matching your query"
 
     option = 0
-    for branch in ffBranches:
+    for branch in ff_branches:
         print("{option}: {branch}".format(option=option, branch=branch.name))
 
-    chosenBranch = input("Select Branch (x = cancel): ")
-    if chosenBranch == "x" or chosenBranch == "X" or chosenBranch == "":
+    chosen_branch = int(input("Select Branch (x = cancel): "))
+    if chosen_branch == "x" or chosen_branch == "X" or chosen_branch == "":
         return
 
-    print("Selected: {branch}".format(branch=ffBranches[chosenBranch]))
-    return ffBranches[chosenBranch]
+    print("Selected: {branch}".format(branch=ff_branches[chosen_branch]))
+    return ff_branches[chosen_branch].name
 
 
 def init():
@@ -87,14 +105,47 @@ def init():
     #clearbranches()
 
     # Write release to config
-    config.write_release(release_dict)
+    config.write_config(release_dict)
 
     # Write release to API
     api.writerelease(release_dict)
 
+def get_key(item_dict):
+    key = 0
+    for part in item_dict["version"].split("."):
+        key += int(part)*100
+
+    key += int(item_dict["candidate"])
+    return key
+
 
 def checkout():
-    
+    release_dict = config.read_config()
+
+    print("Checkout")
+    if release_dict["projectslug"]:
+        projectslug = input("Choose a projectslug [{}]: ".format(release_dict["projectslug"])) or release_dict["projectslug"]
+    else:
+        projectslug = input("Choose a projectslug: ")
+
+    release_dict["projectslug"] = projectslug
+    print()
+
+    # Read all the releases for projectslug
+    items_dict = api.readproject(release_dict["projectslug"])
+    items_list = sorted(items_dict["Items"], key=get_key, reverse=False)
+    for key in range(0, len(items_list)):
+        print("{}: release-v{}-rc{}".format(key, items_list[key]["version"], items_list[key]["candidate"]))
+
+    items_list_key = int(input("Choose release: "))
+    release_dict = items_list[items_list_key]
+
+    release_dict.pop("projectslug#version#candidate")
+    config.write_config(release_dict)
+
+    sh.git.fetch("--all")
+    sh.git.checkout("release-v{}-rc{}".format(release_dict["version"], release_dict["candidate"]))
+
 
 def roll():
     nextReleaseCandidate = getNextReleaseCandidate()
@@ -107,7 +158,7 @@ def roll():
     try:
         sh.git.checkout("-b", nextReleaseCandidate, "master", _err=sys.stderr)
         incrementCandidate()
-        writerelease()
+        config.write_config()
     except sh.ErrorReturnCode_128:
         sys.exit()
 
@@ -137,7 +188,7 @@ def next():
     try:
         sh.git.checkout("-b", nextReleaseCandidate, currentReleaseCandidate, _err=sys.stderr)
         incrementCandidate()
-        writerelease()
+        config.write_config()
     except sh.ErrorReturnCode_128:
         sys.exit()
 
@@ -211,6 +262,11 @@ def getNextReleaseCandidate():
     candidate = getCandidate()
     return "{current}-rc{candidate}".format(current=current, candidate=candidate+1)
 
+
+def parse_jira_key(branch):
+    reg_ex = re.search("\/([A-Z])+-\d+", branch)
+    jira_key = reg_ex.group().replace("/", "", 1)
+    return jira_key
 
 def main(argv):
     method = argv[1]+"()"

@@ -35,6 +35,7 @@ def post_handler(event, context):
     # When input comes from API Gateway event["body"] is a string so we need to cast it to dictionary
     if not isinstance(release_dict, dict):
         release_dict = literal_eval(release_dict)
+        release_dict["projectslug#version#candidate"] = "{0}#{1}#{2}".format(release_dict["projectslug"], release_dict["version"], release_dict["candidate"])
 
     try:
         response = table.put_item(Item=release_dict)

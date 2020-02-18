@@ -2,48 +2,46 @@ import json
 import requests
 
 
-def readrproject(release_dict):
+def readproject(projectslug):
     """
     Reads all Release records for the given projectslug
     /project/{project}
 
-    :param release_dict:
+    :param projectslug:
     :return:
     """
-    projectslug = release_dict["projectslug"]
-    version = release_dict["version"]
-    response = requests.get("https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}/release/{1}".format(projectslug, version))
+    response = requests.get("https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}".format(projectslug))
 
     if response.status_code != 200:
         # Replace this with raise error
         print("ApiCall Error")
 
     if response.json():
-        return json.loads(response.json())
+        return response.json()
     else:
         return {}
 
 
-def readrelease(release_dict):
-    """
-    Reads a Release record from the API
-    /project/{project}/release/{release}
+def readversion(release_dict):
+    pass
 
-    :param release_dict:
-    :return:
-    """
+
+def read_candidate(release_dict):
     projectslug = release_dict["projectslug"]
     version = release_dict["version"]
-    response = requests.get("https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}/release/{1}".format(projectslug, version))
+    candidate = release_dict["candidate"]
+    response = requests.get("https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}/version/{1}/candidate/{2}".format(projectslug, version, candidate))
 
     if response.status_code != 200:
         # Replace this with raise error
         print("ApiCall Error")
 
     if response.json():
-        return json.loads(response.json())
+        return response.json()
     else:
         return {}
+
+    pass
 
 
 def writerelease(release_dict):
@@ -77,3 +75,18 @@ def slugExists(projectslug):
         return False
 
 
+def zapier_POST(jira_key, version):
+    data = {
+        "issue_key": jira_key,
+        "version": version
+
+    }
+    response = requests.post('https://hooks.zapier.com/hooks/catch/728485/odvoq2i/',
+                            data=json.dumps(data),
+                            headers={'Content-Type': 'application/json'}
+                            )
+    if response.status_code != 200:
+        # Replace this with raise error
+        print("ApiCall Error")
+
+    return

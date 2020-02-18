@@ -31,7 +31,7 @@ def read_config():
     return releases_dict
 
 
-def write_release(release_dict):
+def write_config(release_dict):
     """
     Writes the given dictionary to git config "releases" section
     :param release_dict:
@@ -44,7 +44,6 @@ def write_release(release_dict):
                 subprocess.run(['git', 'config', '--local', '--add', 'releases.branches', branch])
             pass
         else:
-            print(item + ":" + str(release_dict[item]))
             subprocess.run(['git', 'config', '--local', 'releases.{0}'.format(item), str(release_dict[item])])
 
     return

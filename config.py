@@ -1,6 +1,8 @@
 import json
 import subprocess
 
+import sh
+
 
 def read_config():
     """
@@ -47,3 +49,33 @@ def write_config(release_dict):
             subprocess.run(['git', 'config', '--local', 'releases.{0}'.format(item), str(release_dict[item])])
 
     return
+
+
+def incrementCandidate():
+    candidate = getCandidate()
+    candidate += 1
+    sh.git.config("--local", "--replace-all", "releases.candidate", candidate)
+
+
+def getCurrent():
+    return str(sh.git.config("--local", "--get", "releases.current").strip())
+
+
+def getCandidate():
+    return int(sh.git.config("--local", "--get", "releases.candidate").strip())
+
+
+def getprojectslug():
+    return int(sh.git.config("--local", "--get", "releases.projectslug").strip())
+
+
+def getversion():
+    return int(sh.git.config("--local", "--get", "releases.version").strip())
+
+
+def clearbranches():
+    sh.git.config("--local", "--unset-all", "releases.branches")
+
+
+def add(branch):
+    sh.git.config("--add", "releases.branches", branch)

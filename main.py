@@ -1,27 +1,69 @@
 #!/usr/bin/python
 
-import git
 import api
-import config
 from git import Repo
 import os
-import re
 import sh
 import subprocess
 import sys
 import config
+from config import incrementCandidate, clearbranches, add
+import helper
+from jira import parse_jira_key
 
 repo = Repo(os.getcwd())
 assert not repo.bare, "This directory is a bare repo, please clone a project to work with"
 
 
-def add(branch):
-    sh.git.config("--add", "releases.branches", branch)
+def jira_sync():
+    releases_dict = config.read_config()
+
+    # Get all issues in project/version
+    issues_list = api.jira_search_issues(releases_dict["projectslug"], releases_dict["version"])
+
+    # Add any missing branches
+    for issue in issues_list:
+        for branch in releases_dict["branches"]:
+            if helper.key_branch_comp(issue, branch):
+                print(issue + " not in branches")
+
+    return
 
 
-def clearbranches():
-    # git config --unset-all releases.branches
-    sh.git.config("--local", "--unset-all", "releases.branches")
+def rm():
+    print("Branches found:")
+    release_dict = config.read_config()
+    for i in range(0, len(release_dict["branches"])):
+        print("{}: {}".format(i, release_dict["branches"][i]))
+
+    print("Select a branch to remove: (x = cancel)")
+    choice = input() or "x"
+    if choice.lower() == "x":
+        return
+    else:
+        choice = int(choice)
+
+    # Remove the FixVersion in JIRA
+    print("Send to JIRA [yes]? yes/no")
+    jira_send = bool(input()) or "yes"
+    if jira_send == "yes":
+        jira_send = True
+    elif jira_send == "no":
+        jira_send = False
+    else:
+        jira_send = False
+
+    if jira_send:
+        jira_key = parse_jira_key(release_dict["branches"][choice])
+        api.zapier_delete_fixversion(jira_key, release_dict["version"])
+
+    # Remove the branch from the Dictionary
+    del release_dict["branches"][choice]
+
+    # Write the dictionary to git-config
+    config.write_config(release_dict)
+    # Write the dictionary to DynamoDB
+    api.writerelease(release_dict)
 
 
 def feature():
@@ -40,9 +82,10 @@ def feature():
         if jira_send:
             jira_key = parse_jira_key(branch)
             release_dict = config.read_config()
-            api.zapier_POST(jira_key, release_dict["version"])
+            api.zapier_create_fixveresion(jira_key, release_dict["version"])
 
     return
+
 
 def find_feature():
     print("Find a branch by type, or search for it by name: ")
@@ -54,7 +97,7 @@ def find_feature():
 
     feature_query = ""
     if search_type == 0:
-        feature_query = input("Enter part of a Feature Branch name: (we will search for it) ")
+        feature_query = input("Enter part of a Feature Branch name: (we will search for it) ").strip()
     elif search_type == 1:
         feature_query = "feature/"
     elif search_type == 2:
@@ -62,21 +105,24 @@ def find_feature():
     elif search_type == 3:
         feature_query = "hotfix/"
 
-    # TODO: Make sure this is checking remotes as well as locals
-    ff_branches = list(filter(lambda x: feature_query in x.name, repo.branches))
+    result = subprocess.run(['git', 'branch', '-a'], stdout=subprocess.PIPE)
+    branches = result.stdout.decode('utf-8').splitlines()
+    branches = list(map(lambda x: x.strip(), branches))
+    branches = list(filter(lambda x: feature_query.lower() in x.lower(), branches))
 
-    assert len(ff_branches) > 0, "No branches found matching your query"
+    assert len(branches) > 0, "No branches found matching your query"
 
-    option = 0
-    for branch in ff_branches:
-        print("{option}: {branch}".format(option=option, branch=branch.name))
+    for i in range(0, len(branches)):
+        print("{option}: {branch}".format(option=i, branch=branches[i]))
 
-    chosen_branch = int(input("Select Branch (x = cancel): "))
-    if chosen_branch == "x" or chosen_branch == "X" or chosen_branch == "":
+    chosen_branch = input("Select Branch (x = cancel): ") or "x"
+    if chosen_branch.lower() == "x" or chosen_branch == "":
         return
 
-    print("Selected: {branch}".format(branch=ff_branches[chosen_branch]))
-    return ff_branches[chosen_branch].name
+    chosen_branch = int(chosen_branch)
+
+    print("Selected: {branch}".format(branch=branches[chosen_branch]))
+    return branches[chosen_branch]
 
 
 def init():
@@ -85,9 +131,14 @@ def init():
     :rtype: object
     """
     release_dict = config.read_config()
-    projectslug = input("Enter the project slug: ")
+    if "projectslug" in release_dict and release_dict["projectslug"]:
+        projectslug = input("Choose a projectslug [{}]: ".format(release_dict["projectslug"])) or release_dict["projectslug"]
+    else:
+        projectslug = input("Choose a projectslug: ")
+
     release_dict["projectslug"] = projectslug.strip()
 
+    # TODO: Check that the slug and version don't already exist; if they do prompt for confirmation
     #if slugExists(projectslug):
     #    print("That slug already exists")
     #    # TODO: Implement a confirmation here
@@ -98,25 +149,19 @@ def init():
     release_dict["version"] = release_version
     release_dict["current"] = "release-v" + release_version
 
-    release_candidate = 0
-    release_candidate = input("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1): ")
-    release_dict["candidate"] = release_candidate
+    release_candidate = input("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1): ") or 0
+    release_dict["candidate"] = int(release_candidate)
 
-    #clearbranches()
+    status()
+    choice = input("Clear branches [yes/no] or inherit from current config? [no]") or "no"
+    if choice != "no":
+        clearbranches()
 
     # Write release to config
     config.write_config(release_dict)
 
     # Write release to API
     api.writerelease(release_dict)
-
-def get_key(item_dict):
-    key = 0
-    for part in item_dict["version"].split("."):
-        key += int(part)*100
-
-    key += int(item_dict["candidate"])
-    return key
 
 
 def checkout():
@@ -128,7 +173,7 @@ def checkout():
     else:
         projectslug = input("Choose a projectslug: ")
 
-    release_dict["projectslug"] = projectslug
+    release_dict["projectslug"] = projectslug.strip()
     print()
 
     # Read all the releases for projectslug
@@ -148,7 +193,7 @@ def checkout():
 
 
 def roll():
-    nextReleaseCandidate = getNextReleaseCandidate()
+    nextReleaseCandidate = get_next_release_candidate()
 
     sh.git.fetch("--all")
 
@@ -165,9 +210,9 @@ def roll():
     result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
     branches = result.stdout.decode('utf-8').splitlines()
 
-    mergeBranches(branches)
+    merge_branches(branches)
 
-    hasConflicts = findConflicts()
+    hasConflicts = find_conflicts()
     if hasConflicts:
         print("Not pushing to origin")
     else:
@@ -177,8 +222,8 @@ def roll():
 
 
 def next():
-    currentReleaseCandidate = getCurrentReleaseCandidate()
-    nextReleaseCandidate = getNextReleaseCandidate()
+    current_release_candidate = get_current_release_candidate()
+    nextReleaseCandidate = get_next_release_candidate()
 
     sh.git.fetch("--all")
 
@@ -186,7 +231,7 @@ def next():
 
     # Change this so that "master" is configurable
     try:
-        sh.git.checkout("-b", nextReleaseCandidate, currentReleaseCandidate, _err=sys.stderr)
+        sh.git.checkout("-b", nextReleaseCandidate, current_release_candidate, _err=sys.stderr)
         incrementCandidate()
         config.write_config()
     except sh.ErrorReturnCode_128:
@@ -195,9 +240,9 @@ def next():
     result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
     branches = result.stdout.decode('utf-8').splitlines()
 
-    mergeBranches(branches)
+    merge_branches(branches)
 
-    hasConflicts = findConflicts()
+    hasConflicts = find_conflicts()
     if hasConflicts:
         print("Not pushing to origin")
     else:
@@ -206,7 +251,19 @@ def next():
         #sh.git.push("origin", nextReleaseCandidate)
 
 
-def mergeBranches(branches):
+def status():
+    releases_dict = config.read_config()
+
+    print("Development Branch: {}".format(releases_dict["devbranch"]))
+    print("Staging Branch: {}".format(releases_dict["stagebranch"]))
+    print()
+    print("Branches in this release:")
+    for branch in releases_dict["branches"]:
+        print(branch)
+
+    return
+
+def merge_branches(branches):
     sh.git.fetch("--all")
 
     for branch in branches:
@@ -219,7 +276,7 @@ def mergeBranches(branches):
             return
 
 
-def findConflicts():
+def find_conflicts():
     print("Looking for conflicts with merge.")
     result = subprocess.run(['git', 'diff', '--name-only', '--diff-filter=U'], stdout=subprocess.PIPE)
     conflicts = result.stdout.decode('utf-8')
@@ -230,47 +287,14 @@ def findConflicts():
         return False
 
 
-def incrementCandidate():
-    candidate = getCandidate()
-    candidate += 1
-    sh.git.config("--local", "--replace-all", "releases.candidate", candidate)
-
-def getCurrent():
-    return str(sh.git.config("--local", "--get", "releases.current").strip())
-
-
-def getCandidate():
-    return int(sh.git.config("--local", "--get", "releases.candidate").strip())
-
-
-def getprojectslug():
-    return int(sh.git.config("--local", "--get", "releases.projectslug").strip())
-
-
-def getversion():
-    return int(sh.git.config("--local", "--get", "releases.version").strip())
-
-
-def getCurrentReleaseCandidate():
-    current = getCurrent()
-    candidate = getCandidate()
-    return "{current}-rc{candidate}".format(current=current, candidate=candidate)
-
-
-def getNextReleaseCandidate():
-    current = getCurrent()
-    candidate = getCandidate()
-    return "{current}-rc{candidate}".format(current=current, candidate=candidate+1)
-
-
-def parse_jira_key(branch):
-    reg_ex = re.search("\/([A-Z])+-\d+", branch)
-    jira_key = reg_ex.group().replace("/", "", 1)
-    return jira_key
-
 def main(argv):
-    method = argv[1]+"()"
-    exec(method)
+    if len(argv) > 1:
+        method = argv[1]+"()"
+        exec(method)
+    else:
+        status()
+
+    return
 
 
 if __name__ == "__main__":

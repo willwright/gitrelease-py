@@ -75,7 +75,7 @@ def slugExists(projectslug):
         return False
 
 
-def zapier_POST(jira_key, version):
+def zapier_create_fixveresion(jira_key, version):
     data = {
         "issue_key": jira_key,
         "version": version
@@ -90,3 +90,45 @@ def zapier_POST(jira_key, version):
         print("ApiCall Error")
 
     return
+
+
+def zapier_delete_fixversion(jira_key, version):
+    data = {
+        "issue_key": jira_key,
+        "version": version
+
+    }
+    response = requests.put('https://hooks.zapier.com/hooks/catch/728485/omo93b1/',
+                            data=json.dumps(data),
+                            headers={'Content-Type': 'application/json'}
+                            )
+    if response.status_code != 200:
+        # Replace this with raise error
+        print("ApiCall Error")
+
+    return
+
+
+def jira_search_issues(projectslug, version):
+    data = {
+        "expand": [],
+        "jql": "project = {} AND fixVersion in ({})".format(projectslug, version),
+        "fieldsByKeys": False,
+        "fields": [],
+        "startAt": 0
+    }
+
+    response = requests.post('https://guidevops.atlassian.net/rest/api/3/search',
+                             data=json.dumps(data),
+                             headers={'Content-Type': 'application/json'},
+                             auth=('wwrig@guidance.com', 'wgpIT65Wqb8fBuiLW4Q3E57F')
+                             )
+    if response.status_code != 200:
+        # Replace this with raise error
+        print("ApiCall Error")
+
+    issues_list = []
+    for issue in response.json()["issues"]:
+        issues_list.append(issue["key"])
+
+    return issues_list

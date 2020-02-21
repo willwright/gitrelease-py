@@ -7,6 +7,7 @@ import helper
 import local
 import jira
 import os
+import re
 import sh
 import subprocess
 import sys
@@ -272,6 +273,15 @@ def checkout():
             release_dict = raw_candidate["Item"]
             release_dict.pop("projectslug#version#candidate")
     else:
+        # TODO: Set the correct candidate here
+        regex = re.search("[\d+\.]+\d+", choice_branch)
+        version = regex.group()
+
+        regex = re.search("\d+$", choice_branch)
+        candidate = regex.group()
+
+        release_dict["version"] = version
+        release_dict["candidate"] = candidate
         release_dict["branches"] = local.read_git_release(release_dict["version"])
 
     config.write_config(release_dict)
@@ -315,7 +325,7 @@ def roll():
         print("Pushing to origin")
         print("Pushing to origin")
         print("git push origin " + helper.get_current_release_candidate())
-        #sh.git.push("origin", helper.get_current_release_candidate())
+        sh.git.push("origin", helper.get_current_release_candidate(), _out=sys.stdout)
 
 
 def next():
@@ -336,7 +346,10 @@ def next():
         else:
             local.write_git_release(releases_dict["version"], releases_dict["branches"])
             sh.git.add("releases/release-v{}".format(releases_dict["version"]))
-            sh.git.commit("-m", "Appending Release Branch Definition file")
+            try:
+                sh.git.commit("-m", "Appending Release Branch Definition file")
+            except sh.ErrorReturnCode_1:
+                pass
     except sh.ErrorReturnCode_128 as err:
         print(err)
         sys.exit()
@@ -349,7 +362,7 @@ def next():
     else:
         print("Pushing to origin")
         print("git push origin " + helper.get_current_release_candidate())
-        #sh.git.push("origin", helper.get_current_release_candidate())
+        sh.git.push("origin", helper.get_current_release_candidate())
 
 
 def status():
@@ -375,7 +388,7 @@ def merge_branches(branches):
         try:
             sh.git.merge("--no-ff", "--no-edit", branch, _err=sys.stderr, _out=sys.stdout)
         except sh.ErrorReturnCode_1:
-            return
+            continue
         except sh.ErrorReturnCode_128:
             continue
     return
@@ -392,6 +405,37 @@ def find_conflicts():
     else:
         return False
 
+
+def deploy():
+    releases_dict = config.read_config()
+
+    if len(sys.argv) < 2:
+        print("no env specified")
+
+    env = sys.argv[2]
+
+    if env == "dev":
+        branch_code = "devbranch"
+    elif env == "stage":
+        branch_code = "stagebranch"
+    elif env == "prod":
+        pass
+
+    if not branch_code:
+        return
+
+    sh.git.checkout(releases_dict[branch_code], _out=sys.stdout)
+    # sh.git.pull("origin", releases_dict[branch_code])
+    sh.git.reset("--hard", releases_dict["masterbranch"], _out=sys.stdout)
+    try:
+        sh.git.merge("--no-commit", "--no-ff", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
+    except:
+        pass
+
+    sh.git.commit("--cleanup=whitespace", "-m", "Squash Merge: origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
+    sh.git.push("origin", releases_dict[branch_code], "-f", _out=sys.stdout)
+
+    return
 
 def main(argv):
     if len(argv) > 1:

@@ -428,11 +428,10 @@ def deploy():
     # sh.git.pull("origin", releases_dict[branch_code])
     sh.git.reset("--hard", releases_dict["masterbranch"], _out=sys.stdout)
     try:
-        sh.git.merge("--no-commit", "--no-ff", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
+        sh.git.merge("--no-ff", "--no-edit", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
     except:
         pass
 
-    sh.git.commit("--cleanup=whitespace", "-m", "Squash Merge: origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
     sh.git.push("origin", releases_dict[branch_code], "-f", _out=sys.stdout)
 
     return

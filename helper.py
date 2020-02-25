@@ -2,6 +2,7 @@ import subprocess
 
 import config
 import os
+from os import path
 import jira
 import re
 import yaml
@@ -57,6 +58,9 @@ def find_branch_by_query(query):
 
 
 def use_api_share():
+    if not path.exists("gitrelease.yaml"):
+        return False
+
     with open("gitrelease.yaml", "r") as stream:
         try:
             config_dict = yaml.safe_load(stream)

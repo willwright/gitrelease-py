@@ -88,6 +88,8 @@ def jira_create_fixveresion(jira_key, version):
             config_dict = yaml.safe_load(stream)
         except yaml.YAMLError as err:
             print(err)
+        except:
+            print("Error")
 
     data = {
         "update": {
@@ -108,6 +110,8 @@ def jira_create_fixveresion(jira_key, version):
     if response.status_code != 204:
         # Replace this with raise error
         print("ApiCall Error")
+    else:
+        print("Issue Removed from JIRA successfully")
 
     return
 
@@ -119,6 +123,8 @@ def jira_delete_fixversion(jira_key, version):
             config_dict = yaml.safe_load(stream)
         except yaml.YAMLError as err:
             print(err)
+        except:
+            print("Error")
 
     data = {
         "update": {
@@ -139,6 +145,8 @@ def jira_delete_fixversion(jira_key, version):
     if response.status_code != 204:
         # Replace this with raise error
         print("ApiCall Error")
+    else:
+        print("Issue Removed from JIRA successfully")
 
     return
 

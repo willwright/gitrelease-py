@@ -68,3 +68,9 @@ def use_api_share():
             print(err)
 
     return bool(config_dict["useApiShare"]) or False
+
+
+def get_current_checkout_branch():
+    result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stdout=subprocess.PIPE)
+
+    return result.stdout.decode('UTF-8')

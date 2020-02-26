@@ -239,12 +239,15 @@ def init():
 
 
 def checkout():
+    # Read in the config from gitconfig
     release_dict = config.read_config()
 
+    # git fetch so that our project is up to date
     sh.git.fetch("--all")
     print("Getting Release Branches...")
-    branches_list = helper.find_branch_by_query("origin/release-v")
 
+    # Get the list of branches which we identify as "release" branches
+    branches_list = helper.find_branch_by_query("origin/release-v")
     if len(branches_list) <= 0:
         print("No Release Branches found in repo")
 
@@ -253,8 +256,25 @@ def checkout():
 
     # Sort the branches by version, candidate
     branches_list = sorted(branches_list, key=helper.release_branch_comp, reverse=False)
+
+    # Print of the list of branches in choice format
     for key in range(0, len(branches_list)):
-        print("{}: {}".format(key, branches_list[key]))
+        largest_tag = ""
+        if len(branches_list) == 1:
+            largest_tag = " <---"
+        elif key+1 >= len(branches_list):
+            largest_tag = " <---"
+        else:
+            regex = re.search("[\d+\.]+\d+", branches_list[key])
+            version = regex.group()
+
+            regex = re.search("[\d+\.]+\d+", branches_list[key+1])
+            version_next = regex.group()
+
+            if version_next > version:
+                largest_tag = " <---"
+
+        print("{}: {}{}".format(str.rjust(str(key), 3), branches_list[key], largest_tag))
 
     choice = input("Choose release (x = cancel): ") or "x"
     if choice.strip().lower() == "x":
@@ -368,8 +388,13 @@ def next():
 def status():
     releases_dict = config.read_config()
 
-    print("Development Branch: {}".format(releases_dict["devbranch"]))
+    print("Master Branch: {}".format(releases_dict["masterbranch"]))
     print("Staging Branch: {}".format(releases_dict["stagebranch"]))
+    print("Development Branch: {}".format(releases_dict["devbranch"]))
+    print("Checked out Branch: {}".format(helper.get_current_checkout_branch()))
+    print("----------------------------------------------")
+    print("Current Version: {}".format(releases_dict["version"]))
+    print("Current Candidate: {}".format(releases_dict["candidate"]))
     print()
     print("Branches in this release:")
     for branch in releases_dict["branches"]:

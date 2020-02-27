@@ -111,7 +111,7 @@ def jira_create_fixveresion(jira_key, version):
         # Replace this with raise error
         print("ApiCall Error")
     else:
-        print("Issue Removed from JIRA successfully")
+        print("Issue Added to JIRA successfully")
 
     return
 

@@ -1,4 +1,4 @@
 /.idea/
 /venv/
 /.aws-sam/
-/__pycache__/
+**/__pycache__/**

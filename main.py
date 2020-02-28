@@ -1,115 +1,37 @@
 #!/usr/bin/python
 
 import api
-import config
-from git import Repo
 import helper
-import local
 import jira
-import os
+import mygit
 import re
 import sh
 import subprocess
 import sys
 
-repo = Repo(os.getcwd())
-assert not repo.bare, "This directory is a bare repo, please clone a project to work with"
 
+def jirasync():
+    if len(sys.argv) < 3:
+        print("no direction specified")
+        print("Valid choices are:")
+        for direction in jira.sync.Direction:
+            print("jirasync {}".format(direction.value))
 
-def jira_sync_down():
-    releases_dict = config.read_config()
+        return
 
-    # Get all issues in project/version
-    issues_list = api.jira_search_issues(releases_dict["projectslug"], releases_dict["version"])
+    direction = sys.argv[2].lower()
 
-    # Add any missing branches
-    for issue in issues_list:
-        found = False
-        for branch in releases_dict["branches"]:
-            if issue in branch:
-                print("{}: found!".format(issue))
-                found = True
+    if direction == jira.sync.Direction.UP.value:
+        jira.sync.up()
+    elif direction == jira.sync.Direction.DOWN.value:
+        jira.sync.down()
 
-        if not found:
-            print("{} is missing!".format(issue))
-            print()
-            print("0: Add to local release")
-            print("1: Remove from JIRA release")
-            print("2: Skip")
-            choice = input("Selection: [0]".format(issue)) or 0
-            print()
-
-            if int(choice) == 0:
-                branches = helper.find_branch_by_query(issue)
-                if len(branches) <0:
-                    print("No branches found matching your query")
-                    print()
-                    continue
-
-                for i in range(0, len(branches)):
-                    print("{option}: {branch}".format(option=i, branch=branches[i]))
-
-                chosen_branch = input("Select Branch (x = cancel): ") or "x"
-                if chosen_branch.lower() == "x" or chosen_branch == "":
-                    print()
-                    continue
-
-                chosen_branch = int(chosen_branch)
-
-                print("Selected: {branch}".format(branch=branches[chosen_branch]))
-                print()
-                releases_dict["branches"].append(branches[chosen_branch])
-
-            elif int(choice) == 1:
-                api.jira_delete_fixversion(issue, releases_dict["version"])
-                print("Removed {} from {}".format(issue, releases_dict["version"]))
-                print()
-            elif int(choice) == 2:
-                continue
-            else:
-                continue
-
-    config.write_config(releases_dict)
-    return
-
-
-def jira_sync_up():
-    releases_dict = config.read_config()
-
-    # Get all issues in project/version
-    issues_list = api.jira_search_issues(releases_dict["projectslug"], releases_dict["version"])
-
-    # Add any missing branches
-    for branch in releases_dict["branches"]:
-        found = False
-        for issue in issues_list:
-            if jira.parse_jira_key(branch) in issue:
-                print("{}: found!".format(branch))
-                found = True
-        if not found:
-            print("{} is missing!".format(branch))
-            print()
-            print("0: Add to JIRA release")
-            print("1: Remove from local release")
-            print("2: Skip")
-            choice = input("Selection: [0]".format(branch)) or 0
-            print()
-            if int(choice) == 0:
-                api.jira_create_fixveresion(jira.parse_jira_key(branch), releases_dict["version"])
-            elif int(choice) == 1:
-                releases_dict["branches"].remove(branch)
-                continue
-            elif int(choice) == 2:
-                continue
-            else:
-                continue
-    config.write_config(releases_dict)
     return
 
 
 def rm():
     print("Branches found:")
-    release_dict = config.read_config()
+    release_dict = mygit.config.read_config()
     for i in range(0, len(release_dict["branches"])):
         print("{}: {}".format(i, release_dict["branches"][i]))
 
@@ -119,6 +41,13 @@ def rm():
         return
     else:
         choice = int(choice)
+
+    # Remove the branch from the Dictionary
+    del release_dict["branches"][choice]
+    # Write the dictionary to mygit-config
+    mygit.config.write_config(release_dict)
+    # Write the dictionary to DynamoDB
+    api.awsgateway.writerelease(release_dict)
 
     # Remove the FixVersion in JIRA
     print("Send to JIRA [yes]? yes/no")
@@ -131,22 +60,28 @@ def rm():
         jira_send = False
 
     if jira_send:
-        jira_key = jira.parse_jira_key(release_dict["branches"][choice])
-        api.jira_delete_fixversion(jira_key, release_dict["version"])
+        jira_key = helper.parse_jira_key(release_dict["branches"][choice])
+        api.jira.delete_fixversion(jira_key, release_dict["version"])
 
-    # Remove the branch from the Dictionary
-    del release_dict["branches"][choice]
-
-    # Write the dictionary to git-config
-    config.write_config(release_dict)
-    # Write the dictionary to DynamoDB
-    api.writerelease(release_dict)
+    return
 
 
 def feature():
+    release_dict = mygit.config.read_config()
+
     branch = find_feature()
     if branch:
-        config.add(branch)
+        if branch in release_dict["branches"]:
+            print("{}: is already included in this release. Skipping...".format(branch))
+            return
+
+        # Add the branch to the release dictionary
+        release_dict["branches"].append(branch)
+        # Write the dictionary to mygit-config
+        mygit.config.write_config(release_dict)
+        # Write the dictionary to DynamoDB
+        api.awsgateway.writerelease(release_dict)
+
         print("Send to JIRA [yes]? yes/no")
         jira_send = bool(input()) or "yes"
         if jira_send == "yes":
@@ -157,9 +92,8 @@ def feature():
             jira_send = False
 
         if jira_send:
-            jira_key = jira.parse_jira_key(branch)
-            release_dict = config.read_config()
-            api.jira_create_fixveresion(jira_key, release_dict["version"])
+            jira_key = helper.parse_jira_key(branch)
+            api.jira.create_fixveresion(jira_key, release_dict["version"])
 
     return
 
@@ -204,7 +138,7 @@ def init():
 
     :rtype: object
     """
-    release_dict = config.read_config()
+    release_dict = mygit.config.read_config()
     if "projectslug" in release_dict and release_dict["projectslug"]:
         projectslug = input("Choose a projectslug [{}]: ".format(release_dict["projectslug"])) or release_dict["projectslug"]
     else:
@@ -229,20 +163,20 @@ def init():
     status()
     choice = input("Clear branches [yes/no] or inherit from current config? [no]") or "no"
     if choice != "no":
-        config.clearbranches()
+        mygit.config.clearbranches()
 
     # Write release to config
-    config.write_config(release_dict)
+    mygit.config.write_config(release_dict)
 
     # Write release to API
-    api.writerelease(release_dict)
+    api.awsgateway.writerelease(release_dict)
 
 
 def checkout():
     # Read in the config from gitconfig
-    release_dict = config.read_config()
+    release_dict = mygit.config.read_config()
 
-    # git fetch so that our project is up to date
+    # mygit fetch so that our project is up to date
     sh.git.fetch("--all")
     print("Getting Release Branches...")
 
@@ -288,7 +222,7 @@ def checkout():
     # TODO: Update release_dict branches from one of these two sources
     if helper.use_api_share():
         # Update release_dict from the API
-        raw_candidate = api.read_candidate(release_dict)
+        raw_candidate = api.awsgateway.read_candidate(release_dict)
         if "Item" in raw_candidate:
             release_dict = raw_candidate["Item"]
             release_dict.pop("projectslug#version#candidate")
@@ -302,13 +236,13 @@ def checkout():
 
         release_dict["version"] = version
         release_dict["candidate"] = candidate
-        release_dict["branches"] = local.read_git_release(release_dict["version"])
+        release_dict["branches"] = mygit.releases.read_git_release(release_dict["version"])
 
-    config.write_config(release_dict)
+    mygit.config.write_config(release_dict)
 
 
 def roll():
-    releases_dict = config.read_config()
+    releases_dict = mygit.config.read_config()
 
     sh.git.fetch("--all")
 
@@ -322,18 +256,18 @@ def roll():
             return
 
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
-        config.write_config(releases_dict)
+        mygit.config.write_config(releases_dict)
         # TODO: Write config to API or Local
         if helper.use_api_share():
             pass
         else:
-            local.write_git_release(releases_dict["version"], releases_dict["branches"])
+            mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
             sh.git.add("releases/release-v{}".format(releases_dict["version"]))
             sh.git.commit("-m", "Appending Release Branch Definition file")
     except sh.ErrorReturnCode_128:
         sys.exit()
 
-    result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
+    result = subprocess.run(['mygit', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
     branches = result.stdout.decode('utf-8').splitlines()
 
     merge_branches(branches)
@@ -344,12 +278,12 @@ def roll():
     else:
         print("Pushing to origin")
         print("Pushing to origin")
-        print("git push origin " + helper.get_current_release_candidate())
+        print("mygit push origin " + helper.get_current_release_candidate())
         sh.git.push("origin", helper.get_current_release_candidate(), _out=sys.stdout)
 
 
 def next():
-    releases_dict = config.read_config()
+    releases_dict = mygit.config.read_config()
 
     sh.git.fetch("--all")
 
@@ -359,12 +293,12 @@ def next():
     try:
         sh.git.checkout("-b", helper.get_next_release_candidate(), helper.get_current_release_candidate(), _err=sys.stderr)
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
-        config.write_config(releases_dict)
+        mygit.config.write_config(releases_dict)
         # TODO: Write config to API or Local
         if helper.use_api_share():
             pass
         else:
-            local.write_git_release(releases_dict["version"], releases_dict["branches"])
+            mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
             sh.git.add("releases/release-v{}".format(releases_dict["version"]))
             try:
                 sh.git.commit("-m", "Appending Release Branch Definition file")
@@ -381,12 +315,12 @@ def next():
         print("Not pushing to origin")
     else:
         print("Pushing to origin")
-        print("git push origin " + helper.get_current_release_candidate())
+        print("mygit push origin " + helper.get_current_release_candidate())
         sh.git.push("origin", helper.get_current_release_candidate())
 
 
 def status():
-    releases_dict = config.read_config()
+    releases_dict = mygit.config.read_config()
 
     print("Master Branch: {}".format(releases_dict["masterbranch"]))
     print("Staging Branch: {}".format(releases_dict["stagebranch"]))
@@ -422,7 +356,7 @@ def merge_branches(branches):
 def find_conflicts():
     print()
     print("Looking for conflicts with merge.")
-    result = subprocess.run(['git', 'diff', '--name-only', '--diff-filter=U'], stdout=subprocess.PIPE)
+    result = subprocess.run(['mygit', 'diff', '--name-only', '--diff-filter=U'], stdout=subprocess.PIPE)
     conflicts = result.stdout.decode('utf-8')
 
     if conflicts:
@@ -432,7 +366,7 @@ def find_conflicts():
 
 
 def deploy():
-    releases_dict = config.read_config()
+    releases_dict = mygit.config.read_config()
 
     if len(sys.argv) < 2:
         print("no env specified")
@@ -450,7 +384,7 @@ def deploy():
         return
 
     sh.git.checkout(releases_dict[branch_code], _out=sys.stdout)
-    # sh.git.pull("origin", releases_dict[branch_code])
+    # sh.mygit.pull("origin", releases_dict[branch_code])
     sh.git.reset("--hard", releases_dict["masterbranch"], _out=sys.stdout)
     try:
         sh.git.merge("--no-ff", "--no-edit", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
@@ -460,6 +394,7 @@ def deploy():
     sh.git.push("origin", releases_dict[branch_code], "-f", _out=sys.stdout)
 
     return
+
 
 def main(argv):
     if len(argv) > 1:

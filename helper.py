@@ -1,9 +1,7 @@
 import subprocess
 
-import config
-import os
+from git import config
 from os import path
-import jira
 import re
 import yaml
 
@@ -74,3 +72,9 @@ def get_current_checkout_branch():
     result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stdout=subprocess.PIPE)
 
     return result.stdout.decode('UTF-8')
+
+
+def parse_jira_key(branch):
+    reg_ex = re.search("\/([A-Z])+-\d+", branch)
+    jira_key = reg_ex.group().replace("/", "", 1)
+    return jira_key

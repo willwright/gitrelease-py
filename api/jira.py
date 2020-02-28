@@ -1,88 +1,14 @@
 import json
 import os
+import sys
+
 import requests
 import yaml
 
 
-def read_project(projectslug):
-    """
-    Reads all Release records for the given projectslug
-    /project/{project}
-
-    :param projectslug:
-    :return:
-    """
-    response = requests.get(
-        "https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}".format(projectslug))
-
-    if response.status_code != 200:
-        # Replace this with raise error
-        print("ApiCall Error")
-
-    if response.json():
-        return response.json()
-    else:
-        return {}
-
-
-def readversion(release_dict):
-    pass
-
-
-def read_candidate(release_dict):
-    projectslug = release_dict["projectslug"]
-    version = release_dict["version"]
-    candidate = release_dict["candidate"]
-    response = requests.get(
-        "https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}/version/{1}/candidate/{2}".format(
-            projectslug, version, candidate))
-
-    if response.status_code != 200:
-        # Replace this with raise error
-        print("ApiCall Error")
-
-    if response.json():
-        return response.json()
-    else:
-        return {}
-
-    pass
-
-
-def writerelease(release_dict):
-    """
-    Writes a Release record to the API
-    /release
-
-    :param release_dict:
-    """
-    # print()
-    # print(json.dumps(releases_dict, indent=4, sort_keys=True))
-
-    response = requests.post('https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/release',
-                             data=json.dumps(release_dict),
-                             headers={'Content-Type': 'application/json'})
-
-    if response.status_code != 200:
-        # Replace this with raise error
-        print("ApiCall Error")
-
-
-def slugExists(projectslug):
-    response = requests.get(
-        'https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{:s}'.format(projectslug))
-    if response.status_code != 200:
-        # Replace this with raise error
-        print("ApiCall Error")
-
-    if "projectslug" in response.json()["item"]:
-        return True
-    else:
-        return False
-
-
-def jira_create_fixveresion(jira_key, version):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
+def create_fixveresion(jira_key, version):
+    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
+    print(sys.path[0])
     with open(script_dir + "/config.yaml", "r") as stream:
         try:
             config_dict = yaml.safe_load(stream)
@@ -116,8 +42,8 @@ def jira_create_fixveresion(jira_key, version):
     return
 
 
-def jira_delete_fixversion(jira_key, version):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
+def delete_fixversion(jira_key, version):
+    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
     with open(script_dir + "/config.yaml", "r") as stream:
         try:
             config_dict = yaml.safe_load(stream)
@@ -151,8 +77,9 @@ def jira_delete_fixversion(jira_key, version):
     return
 
 
-def jira_search_issues(projectslug, version):
-    script_dir = os.path.dirname(os.path.realpath(__file__))
+def search_issues(projectslug, version):
+    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
+    print(script_dir)
     with open(script_dir + "/config.yaml", "r") as stream:
         try:
             config_dict = yaml.safe_load(stream)

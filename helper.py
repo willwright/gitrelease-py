@@ -1,6 +1,6 @@
 import subprocess
 
-from git import config
+from mygit import config
 from os import path
 import re
 import yaml

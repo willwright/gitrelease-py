@@ -44,7 +44,7 @@ def rm():
 
     # Remove the branch from the Dictionary
     del release_dict["branches"][choice]
-    # Write the dictionary to mygit-config
+    # Write the dictionary to git-config
     mygit.config.write_config(release_dict)
     # Write the dictionary to DynamoDB
     api.awsgateway.writerelease(release_dict)
@@ -77,7 +77,7 @@ def feature():
 
         # Add the branch to the release dictionary
         release_dict["branches"].append(branch)
-        # Write the dictionary to mygit-config
+        # Write the dictionary to git-config
         mygit.config.write_config(release_dict)
         # Write the dictionary to DynamoDB
         api.awsgateway.writerelease(release_dict)
@@ -176,7 +176,7 @@ def checkout():
     # Read in the config from gitconfig
     release_dict = mygit.config.read_config()
 
-    # mygit fetch so that our project is up to date
+    # git fetch so that our project is up to date
     sh.git.fetch("--all")
     print("Getting Release Branches...")
 
@@ -267,7 +267,7 @@ def roll():
     except sh.ErrorReturnCode_128:
         sys.exit()
 
-    result = subprocess.run(['mygit', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
+    result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
     branches = result.stdout.decode('utf-8').splitlines()
 
     merge_branches(branches)
@@ -278,7 +278,7 @@ def roll():
     else:
         print("Pushing to origin")
         print("Pushing to origin")
-        print("mygit push origin " + helper.get_current_release_candidate())
+        print("git push origin " + helper.get_current_release_candidate())
         sh.git.push("origin", helper.get_current_release_candidate(), _out=sys.stdout)
 
 
@@ -315,7 +315,7 @@ def next():
         print("Not pushing to origin")
     else:
         print("Pushing to origin")
-        print("mygit push origin " + helper.get_current_release_candidate())
+        print("git push origin " + helper.get_current_release_candidate())
         sh.git.push("origin", helper.get_current_release_candidate())
 
 
@@ -356,7 +356,7 @@ def merge_branches(branches):
 def find_conflicts():
     print()
     print("Looking for conflicts with merge.")
-    result = subprocess.run(['mygit', 'diff', '--name-only', '--diff-filter=U'], stdout=subprocess.PIPE)
+    result = subprocess.run(['git', 'diff', '--name-only', '--diff-filter=U'], stdout=subprocess.PIPE)
     conflicts = result.stdout.decode('utf-8')
 
     if conflicts:
@@ -378,20 +378,30 @@ def deploy():
     elif env == "stage":
         branch_code = "stagebranch"
     elif env == "prod":
-        pass
+        branch_code = "masterbranch"
+
+    sh.git.fetch("--all", _out=sys.stdout)
+    sh.git.checkout(releases_dict[branch_code], _out=sys.stdout)
+    if env != "prod":
+        sh.git.reset("--hard", releases_dict["masterbranch"], _out=sys.stdout)
+    elif env == "prod":
+        sh.git.pull()
 
     if not branch_code:
         return
 
-    sh.git.checkout(releases_dict[branch_code], _out=sys.stdout)
-    # sh.mygit.pull("origin", releases_dict[branch_code])
-    sh.git.reset("--hard", releases_dict["masterbranch"], _out=sys.stdout)
     try:
-        sh.git.merge("--no-ff", "--no-edit", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
+        # Traditional merge strategy
+        # sh.git.merge("--no-ff", "--no-edit", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
+
+        # squash merge
+        sh.git.merge("--squash", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr)
+        sh.git.commit("-m", "Squash merge: origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]))
     except:
         pass
 
-    sh.git.push("origin", releases_dict[branch_code], "-f", _out=sys.stdout)
+    #sh.git.push("origin", releases_dict[branch_code], "-f", _out=sys.stdout)
+    # TODO: If prod then tag
 
     return
 

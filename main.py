@@ -11,16 +11,9 @@ import subprocess
 import sys
 
 
-def jirasync():
-    if len(sys.argv) < 3:
-        print("no direction specified")
-        print("Valid choices are:")
-        for direction in jira.sync.Direction:
-            print("jirasync {}".format(direction.value))
-
-        return
-
-    direction = sys.argv[2].lower()
+@click.command()
+@click.argument('direction', type=click.Choice([jira.sync.Direction.UP.value, jira.sync.Direction.DOWN.value]))
+def jirasync(direction):
 
     if direction == jira.sync.Direction.UP.value:
         jira.sync.up()
@@ -150,9 +143,9 @@ def init():
     """
     release_dict = mygit.config.read_config()
     if "projectslug" in release_dict and release_dict["projectslug"]:
-        projectslug = input("Choose a projectslug [{}]: ".format(release_dict["projectslug"])) or release_dict["projectslug"]
+        projectslug = click.prompt("Choose a projectslug", default=release_dict["projectslug"], type=str)
     else:
-        projectslug = input("Choose a projectslug: ")
+        projectslug = click.prompt("Choose a projectslug: ", type=str)
 
     release_dict["projectslug"] = projectslug.strip()
 
@@ -434,3 +427,4 @@ cli.add_command(status)
 cli.add_command(checkout)
 cli.add_command(rm)
 cli.add_command(feature)
+cli.add_command(jirasync)

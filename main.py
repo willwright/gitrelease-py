@@ -67,9 +67,12 @@ def rm():
     # Write the dictionary to DynamoDB
     api.awsgateway.writerelease(release_dict)
 
+    show_status()
+
     return
 
 
+@click.command()
 def feature():
     release_dict = mygit.config.read_config()
 
@@ -86,12 +89,10 @@ def feature():
         # Write the dictionary to DynamoDB
         api.awsgateway.writerelease(release_dict)
 
-        print("Send to JIRA [yes]? yes/no")
-        jira_send = bool(input()) or "yes"
-        if jira_send == "yes":
+        jira_send = click.prompt("Send to JIRA:", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
+
+        if jira_send == "y":
             jira_send = True
-        elif jira_send == "no":
-            jira_send = False
         else:
             jira_send = False
 
@@ -99,26 +100,31 @@ def feature():
             jira_key = helper.parse_jira_key(branch)
             api.jira.create_fixveresion(jira_key, release_dict["version"])
 
+    show_status()
+
     return
 
 
 def find_feature():
-    print("Find a branch by type, or search for it by name: ")
-    print("0 Search by name")
-    print("1 List all feature/ branches")
-    print("2 List all bugfix/ branches")
-    print("3 List all hotfix/ branches")
-    search_type = int(input())
+    print("Find a branch by type, or search for it by name")
+    print("0: Search by name")
+    print("1: List all feature/ branches")
+    print("2: List all bugfix/ branches")
+    print("3: List all hotfix/ branches")
+
+    search_type = click.prompt("Search by", type=int, default=0)
 
     feature_query = ""
     if search_type == 0:
-        feature_query = input("Enter part of a Feature Branch name: (we will search for it) ").strip()
+        feature_query = click.prompt("Enter part of a Feature Branch name (we will search for it)", type=str).strip()
     elif search_type == 1:
         feature_query = "feature/"
     elif search_type == 2:
         feature_query = "bugfix/"
     elif search_type == 3:
         feature_query = "hotfix/"
+    else:
+        return
 
     branches = helper.find_branch_by_query(feature_query)
 
@@ -249,7 +255,7 @@ def checkout():
 
     mygit.config.write_config(release_dict)
 
-    status()
+    show_status()
 
 
 def roll():
@@ -329,6 +335,11 @@ def next():
 
 @click.command()
 def status():
+    show_status()
+    return
+
+
+def show_status():
     releases_dict = mygit.config.read_config()
 
     click.echo("Master Branch: {}".format(releases_dict["masterbranch"]))
@@ -422,3 +433,4 @@ def cli():
 cli.add_command(status)
 cli.add_command(checkout)
 cli.add_command(rm)
+cli.add_command(feature)

@@ -1,8 +1,7 @@
-import subprocess
-
 from mygit import config
-from os import path
+import os
 import re
+import subprocess
 import yaml
 
 def get_current_release_candidate():
@@ -56,7 +55,7 @@ def find_branch_by_query(query):
 
 
 def use_api_share():
-    if not path.exists("gitrelease.yaml"):
+    if not os.path.exists("gitrelease.yaml"):
         return False
 
     with open("gitrelease.yaml", "r") as stream:
@@ -79,9 +78,24 @@ def parse_jira_key(branch):
     jira_key = reg_ex.group().replace("/", "", 1)
     return jira_key
 
+
 def get_origin_branch_name(branch):
     if branch.lower().startswith("origin/"):
         return branch
     else:
         return "origin/" + branch
 
+
+def load_configuration():
+    script_dir = os.path.expanduser("~/.gitrelease")
+
+    config_dict = {}
+    with open(script_dir + "/config.yaml", "r") as stream:
+        try:
+            config_dict = yaml.safe_load(stream)
+        except yaml.YAMLError as err:
+            print(err)
+        except:
+            print("Error")
+
+    return config_dict

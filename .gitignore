@@ -2,3 +2,4 @@
 /venv/
 /.aws-sam/
 **/__pycache__/**
+/gitrelease_py.egg-info/

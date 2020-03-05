@@ -1,20 +1,11 @@
+import helper
 import json
-import os
-import sys
-
 import requests
-import yaml
 
 
 def create_fixveresion(jira_key, version):
-    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-    with open(script_dir + "/config.yaml", "r") as stream:
-        try:
-            config_dict = yaml.safe_load(stream)
-        except yaml.YAMLError as err:
-            print(err)
-        except:
-            print("Error")
+
+    config_dict = helper.load_configuration()
 
     data = {
         "update": {
@@ -42,14 +33,7 @@ def create_fixveresion(jira_key, version):
 
 
 def delete_fixversion(jira_key, version):
-    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-    with open(script_dir + "/config.yaml", "r") as stream:
-        try:
-            config_dict = yaml.safe_load(stream)
-        except yaml.YAMLError as err:
-            print(err)
-        except:
-            print("Error")
+    config_dict = helper.load_configuration()
 
     data = {
         "update": {
@@ -77,12 +61,7 @@ def delete_fixversion(jira_key, version):
 
 
 def search_issues(projectslug, version):
-    script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-    with open(script_dir + "/config.yaml", "r") as stream:
-        try:
-            config_dict = yaml.safe_load(stream)
-        except yaml.YAMLError as err:
-            print(err)
+    config_dict = helper.load_configuration()
 
     data = {
         "expand": [],

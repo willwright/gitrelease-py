@@ -1,6 +1,5 @@
-#!/usr/bin/python
-
 import api
+import click
 import helper
 import jira
 import mygit
@@ -10,16 +9,9 @@ import subprocess
 import sys
 
 
-def jirasync():
-    if len(sys.argv) < 3:
-        print("no direction specified")
-        print("Valid choices are:")
-        for direction in jira.sync.Direction:
-            print("jirasync {}".format(direction.value))
-
-        return
-
-    direction = sys.argv[2].lower()
+@click.command()
+@click.argument('direction', type=click.Choice([jira.sync.Direction.UP.value, jira.sync.Direction.DOWN.value]))
+def jirasync(direction):
 
     if direction == jira.sync.Direction.UP.value:
         jira.sync.up()
@@ -29,26 +21,27 @@ def jirasync():
     return
 
 
+@click.command()
 def rm():
     print("Branches found:")
     release_dict = mygit.config.read_config()
     for i in range(0, len(release_dict["branches"])):
         print("{}: {}".format(i, release_dict["branches"][i]))
 
-    print("Select a branch to remove: (x = cancel)")
-    choice = input() or "x"
-    if choice.lower() == "x":
+    choice = click.prompt("Select a branch to remove (x = cancel)", type=str, default="x")
+    if choice.lower().strip() == "x":
         return
     else:
-        choice = int(choice)
+        try:
+            choice = int(choice)
+        except:
+            return
 
     # Remove the FixVersion in JIRA
-    print("Send to JIRA [yes]? yes/no")
-    jira_send = bool(input()) or "yes"
-    if jira_send == "yes":
+    jira_send = click.prompt("Send to JIRA:", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
+
+    if jira_send == "y":
         jira_send = True
-    elif jira_send == "no":
-        jira_send = False
     else:
         jira_send = False
 
@@ -65,9 +58,12 @@ def rm():
     # Write the dictionary to DynamoDB
     api.awsgateway.writerelease(release_dict)
 
+    show_status()
+
     return
 
 
+@click.command()
 def feature():
     release_dict = mygit.config.read_config()
 
@@ -84,12 +80,10 @@ def feature():
         # Write the dictionary to DynamoDB
         api.awsgateway.writerelease(release_dict)
 
-        print("Send to JIRA [yes]? yes/no")
-        jira_send = bool(input()) or "yes"
-        if jira_send == "yes":
+        jira_send = click.prompt("Send to JIRA", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
+
+        if jira_send == "y":
             jira_send = True
-        elif jira_send == "no":
-            jira_send = False
         else:
             jira_send = False
 
@@ -97,26 +91,31 @@ def feature():
             jira_key = helper.parse_jira_key(branch)
             api.jira.create_fixveresion(jira_key, release_dict["version"])
 
+    show_status()
+
     return
 
 
 def find_feature():
-    print("Find a branch by type, or search for it by name: ")
-    print("0 Search by name")
-    print("1 List all feature/ branches")
-    print("2 List all bugfix/ branches")
-    print("3 List all hotfix/ branches")
-    search_type = int(input())
+    print("Find a branch by type, or search for it by name")
+    print("0: Search by name")
+    print("1: List all feature/ branches")
+    print("2: List all bugfix/ branches")
+    print("3: List all hotfix/ branches")
+
+    search_type = click.prompt("Search by", type=int, default=0)
 
     feature_query = ""
     if search_type == 0:
-        feature_query = input("Enter part of a Feature Branch name: (we will search for it) ").strip()
+        feature_query = click.prompt("Enter part of a Feature Branch name (we will search for it)", type=str).strip()
     elif search_type == 1:
         feature_query = "feature/"
     elif search_type == 2:
         feature_query = "bugfix/"
     elif search_type == 3:
         feature_query = "hotfix/"
+    else:
+        return
 
     branches = helper.find_branch_by_query(feature_query)
 
@@ -132,19 +131,17 @@ def find_feature():
     chosen_branch = int(chosen_branch)
 
     print("Selected: {branch}".format(branch=branches[chosen_branch]))
+
     return branches[chosen_branch].replace("remotes/", "", 1)
 
 
+@click.command()
 def init():
-    """
-
-    :rtype: object
-    """
     release_dict = mygit.config.read_config()
     if "projectslug" in release_dict and release_dict["projectslug"]:
-        projectslug = input("Choose a projectslug [{}]: ".format(release_dict["projectslug"])) or release_dict["projectslug"]
+        projectslug = click.prompt("Choose a projectslug", default=release_dict["projectslug"], type=str)
     else:
-        projectslug = input("Choose a projectslug: ")
+        projectslug = click.prompt("Choose a projectslug ", type=str)
 
     release_dict["projectslug"] = projectslug.strip()
 
@@ -153,19 +150,26 @@ def init():
     #    print("That slug already exists")
     #    # TODO: Implement a confirmation here
 
-    release_version = input("Enter Release Version (e.g. 16_07 or 1.0.0): ")
+    release_version = click.prompt("Enter Release Version (e.g. 16_07 or 1.0.0)", type=str)
     release_version = release_version.strip()
-    assert release_version, "Release Version is required"
+    if not release_version:
+        click.echo("Release Version is required")
+        return
+
     release_dict["version"] = release_version
     release_dict["current"] = "release-v" + release_version
 
-    release_candidate = input("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1): ") or 0
+    release_candidate = click.prompt("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1)", type=int, default=0)
     release_dict["candidate"] = int(release_candidate)
 
-    status()
-    choice = input("Clear branches [yes/no] or inherit from current config? [no]") or "no"
-    if choice != "no":
+    show_status()
+
+    choice = click.prompt("Clear branches (or inherit from current config)", type=click.Choice(["y", "n"]), default="n")
+
+    if choice == "y":
         mygit.config.clearbranches()
+    elif choice != "n":
+        return
 
     # Write release to config
     mygit.config.write_config(release_dict)
@@ -173,19 +177,22 @@ def init():
     # Write release to API
     api.awsgateway.writerelease(release_dict)
 
+    return
 
+
+@click.command()
 def checkout():
     # Read in the config from gitconfig
     release_dict = mygit.config.read_config()
 
     # git fetch so that our project is up to date
     sh.git.fetch("--all")
-    print("Getting Release Branches...")
+    click.echo("Getting Release Branches...")
 
     # Get the list of branches which we identify as "release" branches
     branches_list = helper.find_branch_by_query("origin/release-v")
     if len(branches_list) <= 0:
-        print("No Release Branches found in repo")
+        click.echo("No Release Branches found in repo")
 
     # Remove "remotes/" from the beginning of the branch name
     branches_list = map(lambda x: x.replace("remotes/", "", 1), branches_list)
@@ -195,11 +202,11 @@ def checkout():
 
     # Print of the list of branches in choice format
     for key in range(0, len(branches_list)):
-        largest_tag = ""
+        largest_tag = False
         if len(branches_list) == 1:
-            largest_tag = " <---"
+            largest_tag = True
         elif key+1 >= len(branches_list):
-            largest_tag = " <---"
+            largest_tag = True
         else:
             regex = re.search("[\d+\.]+\d+", branches_list[key])
             version = regex.group()
@@ -208,15 +215,21 @@ def checkout():
             version_next = regex.group()
 
             if version_next > version:
-                largest_tag = " <---"
+                largest_tag = True
 
-        print("{}: {}{}".format(str.rjust(str(key), 3), branches_list[key], largest_tag))
+        if largest_tag:
+            click.secho("{}: {} <---".format(str.rjust(str(key), 3), branches_list[key]), fg="green")
+        else:
+            click.echo("{}: {}".format(str.rjust(str(key), 3), branches_list[key]))
 
-    choice = input("Choose release (x = cancel): ") or "x"
+    choice = click.prompt("Choose release (x = cancel)", type=str, default="x")
     if choice.strip().lower() == "x":
         return
     else:
-        choice = int(choice)
+        try:
+            choice = int(choice)
+        except:
+            return
 
     choice_branch = branches_list[choice]
     sh.git.checkout(choice_branch.replace("origin/", "", 1))
@@ -240,7 +253,9 @@ def checkout():
 
     mygit.config.write_config(release_dict)
 
-    status()
+    show_status()
+
+    return
 
 
 def roll():
@@ -259,6 +274,7 @@ def roll():
 
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
         mygit.config.write_config(releases_dict)
+
         # TODO: Write config to API or Local
         if helper.use_api_share():
             pass
@@ -281,6 +297,8 @@ def roll():
         print("Pushing to origin")
         sh.git.push("-u", "origin", helper.get_current_release_candidate(), _out=sys.stdout)
 
+    return
+
 
 def next():
     releases_dict = mygit.config.read_config()
@@ -295,6 +313,8 @@ def next():
         sh.git.checkout("-b", helper.get_next_release_candidate(), helper.get_origin_branch_name(helper.get_current_release_candidate()), _err=sys.stderr)
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
         mygit.config.write_config(releases_dict)
+
+        # TODO: Write config to API or Local
         if helper.use_api_share():
             pass
         else:
@@ -317,21 +337,29 @@ def next():
         print("Pushing to origin")
         sh.git.push("-u", "origin", helper.get_current_release_candidate())
 
+    return
 
+
+@click.command()
 def status():
+    show_status()
+    return
+
+
+def show_status():
     releases_dict = mygit.config.read_config()
 
-    print("Master Branch: {}".format(releases_dict["masterbranch"]))
-    print("Staging Branch: {}".format(releases_dict["stagebranch"]))
-    print("Development Branch: {}".format(releases_dict["devbranch"]))
-    print("Checked out Branch: {}".format(helper.get_current_checkout_branch()))
-    print("----------------------------------------------")
-    print("Current Version: {}".format(releases_dict["version"]))
-    print("Current Candidate: {}".format(releases_dict["candidate"]))
-    print()
-    print("Branches in this release:")
+    click.echo("Master Branch: {}".format(releases_dict["masterbranch"]))
+    click.echo("Staging Branch: {}".format(releases_dict["stagebranch"]))
+    click.echo("Development Branch: {}".format(releases_dict["devbranch"]))
+    click.echo("Checked out Branch: {}".format(helper.get_current_checkout_branch()))
+    click.echo("----------------------------------------------")
+    click.echo("Current Version: {}".format(releases_dict["version"]))
+    click.echo("Current Candidate: {}".format(releases_dict["candidate"]))
+    click.echo()
+    click.echo("Branches in this release:")
     for branch in releases_dict["branches"]:
-        print(branch)
+        click.echo(branch)
 
     return
 
@@ -404,16 +432,14 @@ def deploy():
 
     return
 
-
-def main(argv):
-    if len(argv) > 1:
-        method = argv[1]+"()"
-        exec(method)
-    else:
-        status()
-
-    return
+@click.group()
+def cli():
+    pass
 
 
-if __name__ == "__main__":
-    main(sys.argv)
+cli.add_command(status)
+cli.add_command(checkout)
+cli.add_command(rm)
+cli.add_command(feature)
+cli.add_command(jirasync)
+cli.add_command(init)

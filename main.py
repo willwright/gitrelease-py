@@ -133,14 +133,12 @@ def find_feature():
     chosen_branch = int(chosen_branch)
 
     print("Selected: {branch}".format(branch=branches[chosen_branch]))
+
     return branches[chosen_branch].replace("remotes/", "", 1)
 
 
+@click.command()
 def init():
-    """
-
-    :rtype: object
-    """
     release_dict = mygit.config.read_config()
     if "projectslug" in release_dict and release_dict["projectslug"]:
         projectslug = click.prompt("Choose a projectslug", default=release_dict["projectslug"], type=str)
@@ -154,25 +152,34 @@ def init():
     #    print("That slug already exists")
     #    # TODO: Implement a confirmation here
 
-    release_version = input("Enter Release Version (e.g. 16_07 or 1.0.0): ")
+    release_version = click.prompt("Enter Release Version (e.g. 16_07 or 1.0.0)", type=str)
     release_version = release_version.strip()
-    assert release_version, "Release Version is required"
+    if not release_version:
+        click.echo("Release Version is required")
+        return
+
     release_dict["version"] = release_version
     release_dict["current"] = "release-v" + release_version
 
-    release_candidate = input("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1): ") or 0
+    release_candidate = click.prompt("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1)", type=int, default=0)
     release_dict["candidate"] = int(release_candidate)
 
-    status()
-    choice = input("Clear branches [yes/no] or inherit from current config? [no]") or "no"
-    if choice != "no":
+    show_status()
+
+    choice = click.prompt("Clear branches (or inherit from current config)", type=click.Choice(["y", "n"]), default="n")
+
+    if choice == "y":
         mygit.config.clearbranches()
+    elif choice != "n":
+        return
 
     # Write release to config
     mygit.config.write_config(release_dict)
 
     # Write release to API
     api.awsgateway.writerelease(release_dict)
+
+    return
 
 
 @click.command()
@@ -250,6 +257,8 @@ def checkout():
 
     show_status()
 
+    return
+
 
 def roll():
     releases_dict = mygit.config.read_config()
@@ -289,6 +298,8 @@ def roll():
         print("Pushing to origin")
         sh.git.push("-u", "origin", helper.get_current_release_candidate(), _out=sys.stdout)
 
+    return
+
 
 def next():
     releases_dict = mygit.config.read_config()
@@ -324,6 +335,8 @@ def next():
     else:
         print("Pushing to origin")
         sh.git.push("-u", "origin", helper.get_current_release_candidate())
+
+    return
 
 
 @click.command()
@@ -428,3 +441,4 @@ cli.add_command(checkout)
 cli.add_command(rm)
 cli.add_command(feature)
 cli.add_command(jirasync)
+cli.add_command(init)

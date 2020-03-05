@@ -292,7 +292,7 @@ def next():
     # Change this so that "master" is configurable
     try:
         # TODO: Checkout from origin with --no-track; add -u on the push
-        sh.git.checkout("-b", helper.get_next_release_candidate(), helper.get_origin_branch_naem(helper.get_current_release_candidate()), _err=sys.stderr)
+        sh.git.checkout("-b", helper.get_next_release_candidate(), helper.get_origin_branch_name(helper.get_current_release_candidate()), _err=sys.stderr)
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
         mygit.config.write_config(releases_dict)
         if helper.use_api_share():
@@ -383,7 +383,7 @@ def deploy():
     sh.git.fetch("--all", _out=sys.stdout)
     sh.git.checkout(releases_dict[branch_code], _out=sys.stdout)
     if env != "prod":
-        sh.git.reset("--hard", helper.get_origin_branch_naem(releases_dict["masterbranch"]), _out=sys.stdout)
+        sh.git.reset("--hard", helper.get_origin_branch_name(releases_dict["masterbranch"]), _out=sys.stdout)
     elif env == "prod":
         sh.git.pull()
 

@@ -79,7 +79,7 @@ def parse_jira_key(branch):
     jira_key = reg_ex.group().replace("/", "", 1)
     return jira_key
 
-def get_origin_branch_naem(branch):
+def get_origin_branch_name(branch):
     if branch.lower().startswith("origin/"):
         return branch
     else:

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import api
+import click
 import helper
 import jira
 import mygit
@@ -29,26 +30,27 @@ def jirasync():
     return
 
 
+@click.command()
 def rm():
     print("Branches found:")
     release_dict = mygit.config.read_config()
     for i in range(0, len(release_dict["branches"])):
         print("{}: {}".format(i, release_dict["branches"][i]))
 
-    print("Select a branch to remove: (x = cancel)")
-    choice = input() or "x"
-    if choice.lower() == "x":
+    choice = click.prompt("Select a branch to remove (x = cancel)", type=str, default="x")
+    if choice.lower().strip() == "x":
         return
     else:
-        choice = int(choice)
+        try:
+            choice = int(choice)
+        except:
+            return
 
     # Remove the FixVersion in JIRA
-    print("Send to JIRA [yes]? yes/no")
-    jira_send = bool(input()) or "yes"
-    if jira_send == "yes":
+    jira_send = click.prompt("Send to JIRA:", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
+
+    if jira_send == "y":
         jira_send = True
-    elif jira_send == "no":
-        jira_send = False
     else:
         jira_send = False
 
@@ -174,18 +176,19 @@ def init():
     api.awsgateway.writerelease(release_dict)
 
 
+@click.command()
 def checkout():
     # Read in the config from gitconfig
     release_dict = mygit.config.read_config()
 
     # git fetch so that our project is up to date
     sh.git.fetch("--all")
-    print("Getting Release Branches...")
+    click.echo("Getting Release Branches...")
 
     # Get the list of branches which we identify as "release" branches
     branches_list = helper.find_branch_by_query("origin/release-v")
     if len(branches_list) <= 0:
-        print("No Release Branches found in repo")
+        click.echo("No Release Branches found in repo")
 
     # Remove "remotes/" from the beginning of the branch name
     branches_list = map(lambda x: x.replace("remotes/", "", 1), branches_list)
@@ -195,11 +198,11 @@ def checkout():
 
     # Print of the list of branches in choice format
     for key in range(0, len(branches_list)):
-        largest_tag = ""
+        largest_tag = False
         if len(branches_list) == 1:
-            largest_tag = " <---"
+            largest_tag = True
         elif key+1 >= len(branches_list):
-            largest_tag = " <---"
+            largest_tag = True
         else:
             regex = re.search("[\d+\.]+\d+", branches_list[key])
             version = regex.group()
@@ -208,15 +211,21 @@ def checkout():
             version_next = regex.group()
 
             if version_next > version:
-                largest_tag = " <---"
+                largest_tag = True
 
-        print("{}: {}{}".format(str.rjust(str(key), 3), branches_list[key], largest_tag))
+        if largest_tag:
+            click.secho("{}: {} <---".format(str.rjust(str(key), 3), branches_list[key]), fg="green")
+        else:
+            click.echo("{}: {}".format(str.rjust(str(key), 3), branches_list[key]))
 
-    choice = input("Choose release (x = cancel): ") or "x"
+    choice = click.prompt("Choose release (x = cancel)", type=str, default="x")
     if choice.strip().lower() == "x":
         return
     else:
-        choice = int(choice)
+        try:
+            choice = int(choice)
+        except:
+            return
 
     choice_branch = branches_list[choice]
     sh.git.checkout(choice_branch.replace("origin/", "", 1))
@@ -318,20 +327,21 @@ def next():
         sh.git.push("-u", "origin", helper.get_current_release_candidate())
 
 
+@click.command()
 def status():
     releases_dict = mygit.config.read_config()
 
-    print("Master Branch: {}".format(releases_dict["masterbranch"]))
-    print("Staging Branch: {}".format(releases_dict["stagebranch"]))
-    print("Development Branch: {}".format(releases_dict["devbranch"]))
-    print("Checked out Branch: {}".format(helper.get_current_checkout_branch()))
-    print("----------------------------------------------")
-    print("Current Version: {}".format(releases_dict["version"]))
-    print("Current Candidate: {}".format(releases_dict["candidate"]))
-    print()
-    print("Branches in this release:")
+    click.echo("Master Branch: {}".format(releases_dict["masterbranch"]))
+    click.echo("Staging Branch: {}".format(releases_dict["stagebranch"]))
+    click.echo("Development Branch: {}".format(releases_dict["devbranch"]))
+    click.echo("Checked out Branch: {}".format(helper.get_current_checkout_branch()))
+    click.echo("----------------------------------------------")
+    click.echo("Current Version: {}".format(releases_dict["version"]))
+    click.echo("Current Candidate: {}".format(releases_dict["candidate"]))
+    click.echo()
+    click.echo("Branches in this release:")
     for branch in releases_dict["branches"]:
-        print(branch)
+        click.echo(branch)
 
     return
 
@@ -404,16 +414,11 @@ def deploy():
 
     return
 
-
-def main(argv):
-    if len(argv) > 1:
-        method = argv[1]+"()"
-        exec(method)
-    else:
-        status()
-
-    return
+@click.group()
+def cli():
+    pass
 
 
-if __name__ == "__main__":
-    main(sys.argv)
+cli.add_command(status)
+cli.add_command(checkout)
+cli.add_command(rm)

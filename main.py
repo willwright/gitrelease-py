@@ -315,7 +315,6 @@ def next():
         print("Not pushing to origin")
     else:
         print("Pushing to origin")
-        print("git push origin " + helper.get_current_release_candidate())
         sh.git.push("-u", "origin", helper.get_current_release_candidate())
 
 

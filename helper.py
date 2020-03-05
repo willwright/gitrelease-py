@@ -55,7 +55,7 @@ def find_branch_by_query(query):
 
 
 def use_api_share():
-    if not path.exists("gitrelease.yaml"):
+    if not os.path.exists("gitrelease.yaml"):
         return False
 
     with open("gitrelease.yaml", "r") as stream:

@@ -42,13 +42,6 @@ def rm():
     else:
         choice = int(choice)
 
-    # Remove the branch from the Dictionary
-    del release_dict["branches"][choice]
-    # Write the dictionary to git-config
-    mygit.config.write_config(release_dict)
-    # Write the dictionary to DynamoDB
-    api.awsgateway.writerelease(release_dict)
-
     # Remove the FixVersion in JIRA
     print("Send to JIRA [yes]? yes/no")
     jira_send = bool(input()) or "yes"
@@ -62,6 +55,15 @@ def rm():
     if jira_send:
         jira_key = helper.parse_jira_key(release_dict["branches"][choice])
         api.jira.delete_fixversion(jira_key, release_dict["version"])
+
+    # Remove the branch from the Dictionary
+    del release_dict["branches"][choice]
+
+    # Write the dictionary to git-config
+    mygit.config.write_config(release_dict)
+
+    # Write the dictionary to DynamoDB
+    api.awsgateway.writerelease(release_dict)
 
     return
 
@@ -219,7 +221,6 @@ def checkout():
     choice_branch = branches_list[choice]
     sh.git.checkout(choice_branch.replace("origin/", "", 1))
 
-    # TODO: Update release_dict branches from one of these two sources
     if helper.use_api_share():
         # Update release_dict from the API
         raw_candidate = api.awsgateway.read_candidate(release_dict)
@@ -227,7 +228,6 @@ def checkout():
             release_dict = raw_candidate["Item"]
             release_dict.pop("projectslug#version#candidate")
     else:
-        # TODO: Set the correct candidate here
         regex = re.search("[\d+\.]+\d+", choice_branch)
         version = regex.group()
 
@@ -240,6 +240,8 @@ def checkout():
 
     mygit.config.write_config(release_dict)
 
+    status()
+
 
 def roll():
     releases_dict = mygit.config.read_config()
@@ -251,7 +253,7 @@ def roll():
     # Change this so that "master" is configurable
     try:
         try:
-            sh.git.checkout("-b", helper.get_next_release_candidate(), "master", _err=sys.stderr, _out=sys.stdout)
+            sh.git.checkout("-b", helper.get_next_release_candidate(), "origin/master", "--no-track", _err=sys.stderr, _out=sys.stdout)
         except sh.ErrorReturnCode_1:
             return
 
@@ -277,9 +279,7 @@ def roll():
         print("Not pushing to origin")
     else:
         print("Pushing to origin")
-        print("Pushing to origin")
-        print("git push origin " + helper.get_current_release_candidate())
-        sh.git.push("origin", helper.get_current_release_candidate(), _out=sys.stdout)
+        sh.git.push("-u", "origin", helper.get_current_release_candidate(), _out=sys.stdout)
 
 
 def next():
@@ -291,10 +291,10 @@ def next():
 
     # Change this so that "master" is configurable
     try:
-        sh.git.checkout("-b", helper.get_next_release_candidate(), helper.get_current_release_candidate(), _err=sys.stderr)
+        # TODO: Checkout from origin with --no-track; add -u on the push
+        sh.git.checkout("-b", helper.get_next_release_candidate(), helper.get_origin_branch_naem(helper.get_current_release_candidate()), _err=sys.stderr)
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
         mygit.config.write_config(releases_dict)
-        # TODO: Write config to API or Local
         if helper.use_api_share():
             pass
         else:
@@ -316,7 +316,7 @@ def next():
     else:
         print("Pushing to origin")
         print("git push origin " + helper.get_current_release_candidate())
-        sh.git.push("origin", helper.get_current_release_candidate())
+        sh.git.push("-u", "origin", helper.get_current_release_candidate())
 
 
 def status():
@@ -383,7 +383,7 @@ def deploy():
     sh.git.fetch("--all", _out=sys.stdout)
     sh.git.checkout(releases_dict[branch_code], _out=sys.stdout)
     if env != "prod":
-        sh.git.reset("--hard", releases_dict["masterbranch"], _out=sys.stdout)
+        sh.git.reset("--hard", helper.get_origin_branch_naem(releases_dict["masterbranch"]), _out=sys.stdout)
     elif env == "prod":
         sh.git.pull()
 
@@ -400,7 +400,7 @@ def deploy():
     except:
         pass
 
-    #sh.git.push("origin", releases_dict[branch_code], "-f", _out=sys.stdout)
+    sh.git.push("origin", releases_dict[branch_code], "-f", _err=sys.stderr, _out=sys.stdout)
     # TODO: If prod then tag
 
     return

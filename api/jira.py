@@ -8,7 +8,6 @@ import yaml
 
 def create_fixveresion(jira_key, version):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-    print(sys.path[0])
     with open(script_dir + "/config.yaml", "r") as stream:
         try:
             config_dict = yaml.safe_load(stream)
@@ -79,7 +78,6 @@ def delete_fixversion(jira_key, version):
 
 def search_issues(projectslug, version):
     script_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-    print(script_dir)
     with open(script_dir + "/config.yaml", "r") as stream:
         try:
             config_dict = yaml.safe_load(stream)

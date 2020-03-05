@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import api
 import click
 import helper
@@ -82,7 +80,7 @@ def feature():
         # Write the dictionary to DynamoDB
         api.awsgateway.writerelease(release_dict)
 
-        jira_send = click.prompt("Send to JIRA:", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
+        jira_send = click.prompt("Send to JIRA", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
 
         if jira_send == "y":
             jira_send = True
@@ -143,7 +141,7 @@ def init():
     if "projectslug" in release_dict and release_dict["projectslug"]:
         projectslug = click.prompt("Choose a projectslug", default=release_dict["projectslug"], type=str)
     else:
-        projectslug = click.prompt("Choose a projectslug: ", type=str)
+        projectslug = click.prompt("Choose a projectslug ", type=str)
 
     release_dict["projectslug"] = projectslug.strip()
 
@@ -276,6 +274,7 @@ def roll():
 
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
         mygit.config.write_config(releases_dict)
+
         # TODO: Write config to API or Local
         if helper.use_api_share():
             pass
@@ -314,6 +313,8 @@ def next():
         sh.git.checkout("-b", helper.get_next_release_candidate(), helper.get_origin_branch_name(helper.get_current_release_candidate()), _err=sys.stderr)
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
         mygit.config.write_config(releases_dict)
+
+        # TODO: Write config to API or Local
         if helper.use_api_share():
             pass
         else:

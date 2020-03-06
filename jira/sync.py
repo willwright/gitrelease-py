@@ -1,6 +1,5 @@
-from enum import Enum
-
 import api
+from enum import Enum
 import helper
 import mygit
 

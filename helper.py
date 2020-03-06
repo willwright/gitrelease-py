@@ -4,6 +4,7 @@ import re
 import subprocess
 import yaml
 
+
 def get_current_release_candidate():
     releases_dict = config.read_config()
 

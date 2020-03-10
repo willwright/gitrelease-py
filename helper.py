@@ -1,4 +1,5 @@
-from mygit import config
+import click
+import mygit
 import os
 import re
 import subprocess
@@ -6,13 +7,13 @@ import yaml
 
 
 def get_current_release_candidate():
-    releases_dict = config.read_config()
+    releases_dict = mygit.config.read_config()
 
     return "release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"])
 
 
 def get_next_release_candidate():
-    releases_dict = config.read_config()
+    releases_dict = mygit.config.read_config()
 
     return "release-v{}-rc{}".format(releases_dict["version"], int(releases_dict["candidate"]) + 1)
 

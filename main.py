@@ -4,7 +4,6 @@ import helper
 import jira
 import mygit
 import re
-import sh
 import subprocess
 import sys
 
@@ -167,7 +166,7 @@ def init():
     choice = click.prompt("Clear branches (or inherit from current config)", type=click.Choice(["y", "n"]), default="n")
 
     if choice == "y":
-        mygit.config.clearbranches()
+        release_dict["branches"].clear()
     elif choice != "n":
         return
 
@@ -186,7 +185,7 @@ def checkout():
     release_dict = mygit.config.read_config()
 
     # git fetch so that our project is up to date
-    sh.git.fetch("--all")
+    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
     click.echo("Getting Release Branches...")
 
     # Get the list of branches which we identify as "release" branches
@@ -232,7 +231,8 @@ def checkout():
             return
 
     choice_branch = branches_list[choice]
-    sh.git.checkout(choice_branch.replace("origin/", "", 1))
+    # sh.git.checkout(choice_branch.replace("origin/", "", 1))
+    subprocess.run(["git", "checkout", choice_branch.replace("origin/", "", 1)], stdout=sys.stdout, stderr=sys.stderr)
 
     if helper.use_api_share():
         # Update release_dict from the API
@@ -258,18 +258,21 @@ def checkout():
     return
 
 
+@click.command()
 def roll():
     releases_dict = mygit.config.read_config()
 
-    sh.git.fetch("--all")
+    # sh.git.fetch("--all")
+    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
 
     print("Creating " + helper.get_next_release_candidate() + " ...")
 
     # Change this so that "master" is configurable
     try:
         try:
-            sh.git.checkout("-b", helper.get_next_release_candidate(), "origin/master", "--no-track", _err=sys.stderr, _out=sys.stdout)
-        except sh.ErrorReturnCode_1:
+            # sh.git.checkout("-b", helper.get_next_release_candidate(), "origin/master", "--no-track", _err=sys.stderr, _out=sys.stdout)
+            subprocess.run(["git", "checkout", "-b", helper.get_next_release_candidate(), "origin/master", "--no-track"], stderr=sys.stderr, stdout=sys.stdout)
+        except:
             return
 
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
@@ -280,11 +283,14 @@ def roll():
             pass
         else:
             mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
-            sh.git.add("releases/release-v{}".format(releases_dict["version"]))
-            sh.git.commit("-m", "Appending Release Branch Definition file")
-    except sh.ErrorReturnCode_128:
+            # sh.git.add("releases/release-v{}".format(releases_dict["version"]))
+            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr, stdout=sys.stdout)
+            # sh.git.commit("-m", "Appending Release Branch Definition file")
+            subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr, stdout=sys.stdout)
+    except:
         sys.exit()
 
+    # @TODO: There is some warning about piping from subprocess.run, read the docs and refactor
     result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
     branches = result.stdout.decode('utf-8').splitlines()
 
@@ -295,22 +301,26 @@ def roll():
         print("Not pushing to origin")
     else:
         print("Pushing to origin")
-        sh.git.push("-u", "origin", helper.get_current_release_candidate(), _out=sys.stdout)
+        # sh.git.push("-u", "origin", helper.get_current_release_candidate(), _out=sys.stdout)
+        subprocess.run(["git", "push", "-u", "origin", helper.get_current_release_candidate()], stderr=sys.stderr, stdout=sys.stdout)
 
     return
 
 
+@click.command()
 def next():
     releases_dict = mygit.config.read_config()
 
-    sh.git.fetch("--all")
+    # sh.git.fetch("--all")
+    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
+
 
     print("Creating " + helper.get_next_release_candidate() + " ...")
 
     # Change this so that "master" is configurable
     try:
         # TODO: Checkout from origin with --no-track; add -u on the push
-        sh.git.checkout("-b", helper.get_next_release_candidate(), helper.get_origin_branch_name(helper.get_current_release_candidate()), _err=sys.stderr)
+        subprocess.run(["git", "checkout", "-b", helper.get_next_release_candidate(), helper.get_origin_branch_name(helper.get_current_release_candidate())], stderr=sys.stderr)
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
         mygit.config.write_config(releases_dict)
 
@@ -319,13 +329,15 @@ def next():
             pass
         else:
             mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
-            sh.git.add("releases/release-v{}".format(releases_dict["version"]))
+            # sh.git.add("releases/release-v{}".format(releases_dict["version"]))
+            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr, stdout=sys.stdout)
             try:
-                sh.git.commit("-m", "Appending Release Branch Definition file")
-            except sh.ErrorReturnCode_1:
+                # sh.git.commit("-m", "Appending Release Branch Definition file")
+                subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
+                               stdout=sys.stdout)
+            except:
                 pass
-    except sh.ErrorReturnCode_128 as err:
-        print(err)
+    except:
         sys.exit()
 
     merge_branches(releases_dict["branches"])
@@ -335,7 +347,8 @@ def next():
         print("Not pushing to origin")
     else:
         print("Pushing to origin")
-        sh.git.push("-u", "origin", helper.get_current_release_candidate())
+        # sh.git.push("-u", "origin", helper.get_current_release_candidate())
+        subprocess.run(["git", "push", "-u", "origin", helper.get_current_release_candidate()], stdout=sys.stdout, stderr=sys.stderr)
 
     return
 
@@ -365,17 +378,19 @@ def show_status():
 
 
 def merge_branches(branches):
-    sh.git.fetch("--all")
+    # sh.git.fetch("--all")
+    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
+
 
     for branch in branches:
         branch = branch.strip()
         print()
         print("Merging: " + branch)
         try:
-            sh.git.merge("--no-ff", "--no-edit", branch, _err=sys.stderr, _out=sys.stdout)
-        except sh.ErrorReturnCode_1:
-            continue
-        except sh.ErrorReturnCode_128:
+            # sh.git.merge("--no-ff", "--no-edit", branch, _err=sys.stderr, _out=sys.stdout)
+            subprocess.run(["git", "merge", "--no-ff", "--no-edit", branch], stdout=sys.stdout, stderr=sys.stderr)
+
+        except:
             continue
     return
 
@@ -392,27 +407,33 @@ def find_conflicts():
         return False
 
 
-def deploy():
+@click.command()
+@click.argument('environment', type=click.Choice(["dev", "stage", "prod"]))
+def deploy(environment):
     releases_dict = mygit.config.read_config()
 
-    if len(sys.argv) < 2:
-        print("no env specified")
-
-    env = sys.argv[2]
-
-    if env == "dev":
+    if environment == "dev":
         branch_code = "devbranch"
-    elif env == "stage":
+    elif environment == "stage":
         branch_code = "stagebranch"
-    elif env == "prod":
+    elif environment == "prod":
         branch_code = "masterbranch"
 
-    sh.git.fetch("--all", _out=sys.stdout)
-    sh.git.checkout(releases_dict[branch_code], _out=sys.stdout)
-    if env != "prod":
-        sh.git.reset("--hard", helper.get_origin_branch_name(releases_dict["masterbranch"]), _out=sys.stdout)
-    elif env == "prod":
-        sh.git.pull()
+    # sh.git.fetch("--all", _out=sys.stdout)
+    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
+
+    # sh.git.checkout(releases_dict[branch_code], _out=sys.stdout)
+    subprocess.run(["git", "checkout", releases_dict[branch_code]], stdout=sys.stdout, stderr=sys.stderr)
+
+    if environment != "prod":
+        # sh.git.reset("--hard", helper.get_origin_branch_name(releases_dict["masterbranch"]), _out=sys.stdout)
+        subprocess.run(["git", "reset", "--hard",
+                        helper.get_origin_branch_name(releases_dict["masterbranch"])],
+                       stdout=sys.stdout, stderr=sys.stderr)
+
+    elif environment == "prod":
+        # sh.git.pull()
+        subprocess.run(["git", "pull"], stdout=sys.stdout, stderr=sys.stderr)
 
     if not branch_code:
         return
@@ -422,12 +443,21 @@ def deploy():
         # sh.git.merge("--no-ff", "--no-edit", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
 
         # squash merge
-        sh.git.merge("--squash", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr)
-        sh.git.commit("-m", "Squash merge: origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]))
+        # sh.git.merge("--squash", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr)
+        subprocess.run(["git", "merge", "--squash",
+                        "origin/release-v{}-rc{}".format(releases_dict["version"],releases_dict["candidate"])],
+                       stderr=sys.stderr, stdout=sys.stdout)
+
+        # sh.git.commit("-m", "Squash merge: origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]))
+        subprocess.run(["git", "commit", "-m",
+                        "Squash merge: origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"])],
+                       stderr=sys.stderr, stdout=sys.stdout)
     except:
         pass
 
-    sh.git.push("origin", releases_dict[branch_code], "-f", _err=sys.stderr, _out=sys.stdout)
+    # sh.git.push("origin", releases_dict[branch_code], "-f", _err=sys.stderr, _out=sys.stdout)
+    subprocess.run(["git", "push", "origin", releases_dict[branch_code], "-f"], stderr=sys.stderr,
+                   stdout=sys.stdout)
     # TODO: If prod then tag
 
     return
@@ -444,3 +474,6 @@ cli.add_command(rm)
 cli.add_command(feature)
 cli.add_command(jirasync)
 cli.add_command(init)
+cli.add_command(roll)
+cli.add_command(next)
+cli.add_command(deploy)

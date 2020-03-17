@@ -4,3 +4,4 @@
 **/__pycache__/**
 /gitrelease_py.egg-info/
 /venvPS/
+*.pyc

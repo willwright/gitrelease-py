@@ -221,7 +221,7 @@ def checkout():
         else:
             click.echo("{}: {}".format(str.rjust(str(key), 3), branches_list[key]))
 
-    choice = click.prompt("Choose release (x = cancel)", type=str, default="x")
+    choice = click.prompt("Choose release (x = cancel)", type=str, default=str(len(branches_list)-1))
     if choice.strip().lower() == "x":
         return
     else:

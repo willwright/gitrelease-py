@@ -35,6 +35,8 @@ ARGUMENTS:
 #### feature
 Add a feature branch to the current release.
 
+Only remote branches are considered for adding to a release. Local branches are filtered out of the chooser because adding them can cause issues for other team members. 
+
 #### init
 Initialize a new release.
 

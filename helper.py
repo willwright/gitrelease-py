@@ -101,3 +101,7 @@ def load_configuration():
             print("Error")
 
     return config_dict
+
+
+def get_branches_in_release(release_branch):
+    pass

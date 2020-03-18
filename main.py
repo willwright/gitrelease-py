@@ -180,6 +180,7 @@ def init():
 
 
 @click.command()
+@click.option('-b', '--branches', 'branches', is_flag=True)
 def checkout():
     # Read in the config from gitconfig
     release_dict = mygit.config.read_config()

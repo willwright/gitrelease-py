@@ -408,8 +408,9 @@ def find_conflicts():
 
 
 @click.command()
+@click.option('-s', '--squash', 'squash', is_flag=True)
 @click.argument('environment', type=click.Choice(["dev", "stage", "prod"]))
-def deploy(environment):
+def deploy(environment, squash):
     releases_dict = mygit.config.read_config()
 
     if environment == "dev":
@@ -419,43 +420,39 @@ def deploy(environment):
     elif environment == "prod":
         branch_code = "masterbranch"
 
-    # sh.git.fetch("--all", _out=sys.stdout)
     subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
 
-    # sh.git.checkout(releases_dict[branch_code], _out=sys.stdout)
     subprocess.run(["git", "checkout", releases_dict[branch_code]], stdout=sys.stdout, stderr=sys.stderr)
 
     if environment != "prod":
-        # sh.git.reset("--hard", helper.get_origin_branch_name(releases_dict["masterbranch"]), _out=sys.stdout)
         subprocess.run(["git", "reset", "--hard",
                         helper.get_origin_branch_name(releases_dict["masterbranch"])],
                        stdout=sys.stdout, stderr=sys.stderr)
 
     elif environment == "prod":
-        # sh.git.pull()
         subprocess.run(["git", "pull"], stdout=sys.stdout, stderr=sys.stderr)
 
     if not branch_code:
         return
 
     try:
-        # Traditional merge strategy
-        # sh.git.merge("--no-ff", "--no-edit", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr, _out=sys.stdout)
-
-        # squash merge
-        # sh.git.merge("--squash", "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]), _err=sys.stderr)
-        subprocess.run(["git", "merge", "--squash",
-                        "origin/release-v{}-rc{}".format(releases_dict["version"],releases_dict["candidate"])],
-                       stderr=sys.stderr, stdout=sys.stdout)
-
-        # sh.git.commit("-m", "Squash merge: origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"]))
-        subprocess.run(["git", "commit", "-m",
-                        "Squash merge: origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"])],
-                       stderr=sys.stderr, stdout=sys.stdout)
+        if squash:
+            # squash merge
+            subprocess.run(["git", "merge", "--squash",
+                            "origin/release-v{}-rc{}".format(releases_dict["version"],releases_dict["candidate"])],
+                           stderr=sys.stderr, stdout=sys.stdout)
+            subprocess.run(["git", "commit", "-m",
+                            "Squash merge: origin/release-v{}-rc{}".format(releases_dict["version"],
+                                                                           releases_dict["candidate"])],
+                           stderr=sys.stderr, stdout=sys.stdout)
+        else:
+            # Traditional merge strategy
+            subprocess.run(["git", "merge", "--no-ff", "--no-edit",
+                            "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"])],
+                           stderr=sys.stderr, stdout=sys.stdout)
     except:
         pass
 
-    # sh.git.push("origin", releases_dict[branch_code], "-f", _err=sys.stderr, _out=sys.stdout)
     subprocess.run(["git", "push", "origin", releases_dict[branch_code], "-f"], stderr=sys.stderr,
                    stdout=sys.stdout)
     # TODO: If prod then tag

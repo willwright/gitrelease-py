@@ -9,11 +9,11 @@ Running `gitrelease-py` from the command line will display the list of available
 
 The `--help` option can always be applied to a command in order to inspect the command's options and arguments.
 
-###Commands
-####checkout
+### Commands
+#### checkout
 Checkout a release branch from origin.
 
-####deploy
+#### deploy
 Deploy the current release branch to a testing environment. 
 
 Example:
@@ -32,25 +32,25 @@ ARGUMENTS:
 
 **prod** : Merges to the configured `masterbranch`
 
-####feature
+#### feature
 Add a feature branch to the current release.
 
-####init
+#### init
 Initialize a new release.
 
-####jirasync
+#### jirasync
 Synchronize the branches in the current release with JIRA. 
  
-####next
+#### next
 Create a new release candidate from the current list of branches. Base for merge is the **highest** release candidate.  
 
-####rm
+#### rm
 Remove a branch from the current list of branches. 
  
-####roll
+#### roll
 Create a new release candidate from the current list of branhces. Base for merge is `origin/master`. 
 
-####status
+#### status
 Show the current release's configured values. 
 
 ## Compilation

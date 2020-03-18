@@ -49,7 +49,7 @@ def release_branch_comp(branch):
 
 
 def find_branch_by_query(query):
-    result = subprocess.run(['git', 'branch', '-a'], stdout=subprocess.PIPE)
+    result = subprocess.run(['git', 'branch', '-r'], stdout=subprocess.PIPE)
     branches = result.stdout.decode('utf-8').splitlines()
     branches = list(map(lambda x: x.strip(), branches))
     branches = list(filter(lambda x: query.lower() in x.lower(), branches))

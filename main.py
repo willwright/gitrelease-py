@@ -1,6 +1,6 @@
 import api
 import click
-import helper
+from utils import helper
 import jira
 import mygit
 import re

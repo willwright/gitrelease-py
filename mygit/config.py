@@ -47,3 +47,21 @@ def write_config(release_dict):
 
     return
 
+
+def read_config_remote_origin():
+    """
+    Reads the "remote" section from mygit config and returns a dictionary
+    :rtype: dictionary
+    :return:
+    """
+    result = subprocess.run(['git', 'config', '--local', '--get-regex', 'remote.*origin.*'], stdout=subprocess.PIPE)
+    config_section_list = result.stdout.decode('utf-8')
+    config_section_list = config_section_list.splitlines()
+
+    config_section_list = list(map(lambda x: x.split(" "), config_section_list))
+
+    for item in config_section_list:
+        if item[0] == "remote.origin.url":
+            return item[1]
+
+    return

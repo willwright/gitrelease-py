@@ -5,3 +5,5 @@
 /gitrelease_py.egg-info/
 /venvPS/
 *.pyc
+/build/
+/dist/

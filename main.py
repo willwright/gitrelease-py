@@ -180,7 +180,8 @@ def init():
 
 
 @click.command()
-def checkout():
+@click.option('-b', '--branches', 'branches', is_flag=True)
+def checkout(branches):
     # Read in the config from gitconfig
     release_dict = mygit.config.read_config()
 
@@ -219,8 +220,15 @@ def checkout():
         if largest_tag:
             click.secho("{}: {} <---".format(str.rjust(str(key), 3), branches_list[key]), fg="green")
         else:
-            click.echo("{}: {}".format(str.rjust(str(key), 3), branches_list[key]))
+            click.secho("{}: {}".format(str.rjust(str(key), 3), branches_list[key]))
 
+        # If the branches flag was given
+        # print out the branches contained within the given release-vX.XX.X-rcXX
+        if branches:
+            for branch in api.git.get_branches_in_release(branches_list[key]):
+                click.secho("     --{}".format(branch), fg="blue")
+
+    # Prompt the user to select a release-rc
     choice = click.prompt("Choose release (x = cancel)", type=str, default=str(len(branches_list)-1))
     if choice.strip().lower() == "x":
         return
@@ -231,9 +239,14 @@ def checkout():
             return
 
     choice_branch = branches_list[choice]
-    # sh.git.checkout(choice_branch.replace("origin/", "", 1))
+
+    # Checkout the chosen release-rc
     subprocess.run(["git", "checkout", choice_branch.replace("origin/", "", 1)], stdout=sys.stdout, stderr=sys.stderr)
 
+    # There are two methods for updating the gitconfig
+    # Read from the API
+    # or
+    # Read from the releases/release-vX.XX.X file in the repo
     if helper.use_api_share():
         # Update release_dict from the API
         raw_candidate = api.awsgateway.read_candidate(release_dict)
@@ -241,6 +254,7 @@ def checkout():
             release_dict = raw_candidate["Item"]
             release_dict.pop("projectslug#version#candidate")
     else:
+        # Update release_dict from the repo
         regex = re.search("[\d+\.]+\d+", choice_branch)
         version = regex.group()
 
@@ -251,8 +265,10 @@ def checkout():
         release_dict["candidate"] = candidate
         release_dict["branches"] = mygit.releases.read_git_release(release_dict["version"])
 
+    # Write the gitconfig
     mygit.config.write_config(release_dict)
 
+    # Show status of the newly checked out release-rc
     show_status()
 
     return

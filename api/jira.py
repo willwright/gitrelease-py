@@ -21,7 +21,7 @@ def create_fixveresion(jira_key, version):
     response = requests.put('https://guidevops.atlassian.net/rest/api/3/issue/{}'.format(jira_key),
                             data=json.dumps(data),
                             headers={'Content-Type': 'application/json', 'Accept': 'application/json'},
-                            auth=(config_dict["username"], config_dict["password"])
+                            auth=(config_dict["jira"]["username"], config_dict["jira"]["password"])
                             )
     if response.status_code != 204:
         # Replace this with raise error
@@ -49,7 +49,7 @@ def delete_fixversion(jira_key, version):
     response = requests.put('https://guidevops.atlassian.net/rest/api/3/issue/{}'.format(jira_key),
                             data=json.dumps(data),
                             headers={'Content-Type': 'application/json', 'Accept': 'application/json'},
-                            auth=(config_dict["username"], config_dict["password"])
+                            auth=(config_dict["jira"]["username"], config_dict["jira"]["password"])
                             )
     if response.status_code != 204:
         # Replace this with raise error
@@ -74,7 +74,7 @@ def search_issues(projectslug, version):
     response = requests.post('https://guidevops.atlassian.net/rest/api/3/search',
                              data=json.dumps(data),
                              headers={'Content-Type': 'application/json'},
-                             auth=(config_dict["username"], config_dict["password"])
+                             auth=(config_dict["jira"]["username"], config_dict["jira"]["password"])
                              )
     if response.status_code != 200:
         # Replace this with raise error

@@ -3,6 +3,11 @@
   links:
     - title: "Installation"
       url: "docs/installation"
+      children:
+        - title: "Distributatble"
+          url: "docs/installation/distibutable"
+        - title: "Source"
+          url: "docs/installation/source"
     - title: "Usage"
       url: "docs/usage"
     - title: "Contributing"

@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-import py2app
+import py2exe
 
 setup(
     name='gitrelease-py',
@@ -7,7 +7,7 @@ setup(
     author="Will Wright",
     author_email="will@willwright.tech",
     url="https://github.com/willwright/gitrelease-py",
-    setup_requires=["py2app"],
+    py_modules=['main'],
     packages=find_packages(),
     entry_points='''
         [console_scripts]

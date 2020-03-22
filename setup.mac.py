@@ -7,7 +7,9 @@ setup(
     author="Will Wright",
     author_email="will@willwright.tech",
     url="https://github.com/willwright/gitrelease-py",
+    app="main.py",
     setup_requires=["py2app"],
+    py_modules=['main'],
     packages=find_packages(),
     entry_points='''
         [console_scripts]

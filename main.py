@@ -88,7 +88,7 @@ def feature():
 
         if jira_send:
             jira_key = helper.parse_jira_key(branch)
-            api.jira.create_fixveresion(jira_key, release_dict["version"])
+            api.jira.add_fixveresion(jira_key, release_dict["version"])
 
     show_status()
 

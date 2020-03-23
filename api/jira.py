@@ -1,10 +1,12 @@
-from utils import helper
 import json
+
+import click
 import requests
 
+from utils import helper
 
-def create_fixveresion(jira_key, version):
 
+def add_fixveresion(jira_key, version):
     config_dict = helper.load_configuration()
 
     data = {
@@ -24,10 +26,10 @@ def create_fixveresion(jira_key, version):
                             auth=(config_dict["jira"]["username"], config_dict["jira"]["password"])
                             )
     if response.status_code != 204:
-        # Replace this with raise error
-        print("ApiCall Error")
-    else:
-        print("Issue Added to JIRA successfully")
+        click.secho("ApiCall Error", fg='red')
+        if 'errors' in response.json() and 'fixVersions' in response.json()['errors']:
+            click.secho(response.json()['errors']['fixVersions'], fg='red')
+        raise Exception
 
     return
 
@@ -53,9 +55,8 @@ def delete_fixversion(jira_key, version):
                             )
     if response.status_code != 204:
         # Replace this with raise error
-        print("ApiCall Error")
-    else:
-        print("Issue Removed from JIRA successfully")
+        click.secho("ApiCall Error: delete_fixversion", fg='red')
+        raise Exception("missing-version")
 
     return
 
@@ -78,10 +79,42 @@ def search_issues(projectslug, version):
                              )
     if response.status_code != 200:
         # Replace this with raise error
-        print("ApiCall Error")
+        click.secho("ApiCall Error: search_issues", fg='red')
+        if 'errorMessages' in response.json():
+            for message in response.json()['errorMessages']:
+                click.secho(message, fg='red')
+                raise Exception("missing-version")
 
     issues_list = []
+    if "issues" not in response.json():
+        return issues_list
+
     for issue in response.json()["issues"]:
         issues_list.append(issue["key"])
 
     return issues_list
+
+
+def create_fixversion(projectslug, version):
+    config_dict = helper.load_configuration()
+
+    data = {
+        "archived": "false",
+        "name": version,
+        "project": projectslug
+    }
+
+    response = requests.post('https://guidevops.atlassian.net/rest/api/3/version',
+                             data=json.dumps(data),
+                             headers={'Content-Type': 'application/json'},
+                             auth=(config_dict["jira"]["username"], config_dict["jira"]["password"])
+                             )
+    if response.status_code != 201:
+        # Replace this with raise error
+        click.secho("ApiCall Error: create_fixversion", fg='red')
+        if 'errorMessages' in response.json():
+            for message in response.json()['errorMessages']:
+                click.secho(message, fg='red')
+            raise Exception('create-fixversion')
+
+    return

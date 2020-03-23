@@ -1,7 +1,11 @@
-import api
+import copy
 from enum import Enum
-from utils import helper
+
+import click
+
+import api
 import mygit
+from utils import helper
 
 
 class Direction(Enum):
@@ -10,63 +14,89 @@ class Direction(Enum):
 
 
 def up():
-    releases_dict = mygit.config.read_config()
+    releases_dict_read = mygit.config.read_config()
+    release_dict_write = copy.deepcopy(releases_dict_read)
 
     # Get all issues in project/version
-    issues_list = api.jira.search_issues(releases_dict["projectslug"], releases_dict["version"])
+    try:
+        issues_list = api.jira.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
+    except Exception as err:
+        if 'missing-version' in err.args:
+            try:
+                api.jira.create_fixversion(releases_dict_read["projectslug"], releases_dict_read["version"])
+            except Exception:
+                return
+            finally:
+                click.secho("fixVersion: {} created for project: {}".format(releases_dict_read["version"], releases_dict_read["projectslug"]), fg='green')
+                issues_list = api.jira.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
+
+        else:
+            click.secho(err, fg='red')
+            return
 
     # Add any missing branches
-    for branch in releases_dict["branches"]:
+    for branch in releases_dict_read["branches"]:
+        print()
         found = False
         for issue in issues_list:
             if helper.parse_jira_key(branch) in issue:
-                print("{}: found!".format(branch))
+                click.secho("{}{}".format((branch + " ").ljust(60, '='), "> FOUND"), fg='blue')
                 found = True
         if not found:
-            print("{} is missing!".format(branch))
-            print()
+            click.secho("{}{}".format((branch + " ").ljust(60, '='), "> MISSING"), fg='yellow')
             print("0: Add to JIRA release")
             print("1: Remove from local release")
             print("2: Skip")
-            choice = input("Selection: [0]".format(branch)) or 0
-            print()
-            if int(choice) == 0:
-                api.jira.create_fixveresion(helper.parse_jira_key(branch), releases_dict["version"])
-            elif int(choice) == 1:
-                releases_dict["branches"].remove(branch)
-                continue
-            elif int(choice) == 2:
-                continue
+            choice = click.prompt("Selection", type=click.IntRange(0, 2), default=0)
+            if choice == 0:
+                try:
+                    api.jira.add_fixveresion(helper.parse_jira_key(branch), releases_dict_read["version"])
+                    click.secho("{}{}".format((branch + " ").ljust(60, '='), "> ADDED"), fg='green')
+                except Exception:
+                    pass
+            elif choice == 1:
+                release_dict_write["branches"].remove(branch)
+                click.secho("{}{}".format((branch + " ").ljust(60, '='), "> REMOVED"), fg='green')
+            elif choice == 2:
+                # Skip
+                click.secho("{}{}".format((branch + " ").ljust(60, '='), "> SKIPPED"), fg='green')
             else:
-                continue
-    mygit.config.write_config(releases_dict)
+                pass
+
+    mygit.config.write_config(release_dict_write)
     return
 
 
 def down():
-    releases_dict = mygit.config.read_config()
+    releases_dict_read = mygit.config.read_config()
+    release_dict_write = copy.deepcopy(releases_dict_read)
 
     # Get all issues in project/version
-    issues_list = api.jira.search_issues(releases_dict["projectslug"], releases_dict["version"])
+    try:
+        issues_list = api.jira.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
+    except Exception as err:
+        if 'missing-version' in err.args:
+            click.secho(err, fg='red')
+        return
 
     # Add any missing branches
     for issue in issues_list:
+        print()
         found = False
-        for branch in releases_dict["branches"]:
+        for branch in releases_dict_read["branches"]:
             if issue in branch:
-                print("{}: found!".format(issue))
+                click.secho("{}{}".format((branch + " ").ljust(60, '='), "> FOUND"), fg='blue')
                 found = True
 
         if not found:
-            print("{} is missing!".format(issue))
-            print()
+            click.secho("{}{}".format((issue + " ").ljust(60, '='), "> MISSING"), fg='yellow')
             print("0: Add to local release")
             print("1: Remove from JIRA release")
             print("2: Skip")
-            choice = input("Selection: [0]".format(issue)) or 0
-            print()
+            choice = click.prompt("Selection", type=click.IntRange(0, 2), default=0)
 
-            if int(choice) == 0:
+            if choice == 0:
+                # Add to local
                 branches = helper.find_branch_by_query(issue)
                 if len(branches) <= 0:
                     print("No branches found matching your query")
@@ -76,25 +106,30 @@ def down():
                 for i in range(0, len(branches)):
                     print("{option}: {branch}".format(option=i, branch=branches[i]))
 
-                chosen_branch = input("Select Branch (x = cancel): ") or "x"
-                if chosen_branch.lower() == "x" or chosen_branch == "":
-                    print()
-                    continue
-
-                chosen_branch = int(chosen_branch)
+                if len(branches) == 1:
+                    chosen_branch = click.prompt("Select Branch", type=int, default=0)
+                else:
+                    chosen_branch = click.prompt("Select Branch", type=click.IntRange(0, len(branches)))
 
                 print("Selected: {branch}".format(branch=branches[chosen_branch]))
-                print()
-                releases_dict["branches"].append(branches[chosen_branch])
+                release_dict_write["branches"].append(branches[chosen_branch])
+                click.secho("{}{}".format((branches[chosen_branch] + " ").ljust(60, '='), "> ADDED"), fg='green')
 
-            elif int(choice) == 1:
-                api.jira.delete_fixversion(issue, releases_dict["version"])
-                print("Removed {} from {}".format(issue, releases_dict["version"]))
+            elif choice == 1:
+                # Remove from JIRA
+                try:
+                    api.jira.delete_fixversion(issue, releases_dict_read["version"])
+                    click.secho("{}{}".format((issue + " ").ljust(60, '='), "> REMOVED"), fg='green')
+                except Exception:
+                    pass
                 print()
-            elif int(choice) == 2:
-                continue
+
+            elif choice == 2:
+                # Skip
+                click.secho("{}{}".format((issue + " ").ljust(60, '='), "> SKIPPED"), fg='green')
+
             else:
-                continue
+                pass
 
-    mygit.config.write_config(releases_dict)
+    mygit.config.write_config(release_dict_write)
     return

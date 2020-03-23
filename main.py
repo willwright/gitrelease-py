@@ -1,17 +1,18 @@
-import api
-import click
-from utils import helper
-import jira
-import mygit
 import re
 import subprocess
 import sys
+
+import click
+
+import api
+import jira
+import mygit
+from utils import helper
 
 
 @click.command()
 @click.argument('direction', type=click.Choice([jira.sync.Direction.UP.value, jira.sync.Direction.DOWN.value]))
 def jirasync(direction):
-
     if direction == jira.sync.Direction.UP.value:
         jira.sync.up()
     elif direction == jira.sync.Direction.DOWN.value:
@@ -102,7 +103,7 @@ def find_feature():
     print("2: List all bugfix/ branches")
     print("3: List all hotfix/ branches")
 
-    search_type = click.prompt("Search by", type=int, default=0)
+    search_type = click.prompt("Search by", type=click.IntRange(0, 3), default=0)
 
     feature_query = ""
     if search_type == 0:
@@ -140,12 +141,12 @@ def init():
     if "projectslug" in release_dict and release_dict["projectslug"]:
         projectslug = click.prompt("Choose a projectslug", default=release_dict["projectslug"], type=str)
     else:
-        projectslug = click.prompt("Choose a projectslug ", type=str)
+        projectslug = click.prompt("Choose a projectslug", type=str)
 
     release_dict["projectslug"] = projectslug.strip()
 
     # TODO: Check that the slug and version don't already exist; if they do prompt for confirmation
-    #if slugExists(projectslug):
+    # if slugExists(projectslug):
     #    print("That slug already exists")
     #    # TODO: Implement a confirmation here
 
@@ -158,7 +159,8 @@ def init():
     release_dict["version"] = release_version
     release_dict["current"] = "release-v" + release_version
 
-    release_candidate = click.prompt("Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1)", type=int, default=0)
+    release_candidate = click.prompt(
+        "Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1)", type=int, default=0)
     release_dict["candidate"] = int(release_candidate)
 
     show_status()
@@ -205,13 +207,13 @@ def checkout(branches):
         largest_tag = False
         if len(branches_list) == 1:
             largest_tag = True
-        elif key+1 >= len(branches_list):
+        elif key + 1 >= len(branches_list):
             largest_tag = True
         else:
             regex = re.search("[\d+\.]+\d+", branches_list[key])
             version = regex.group()
 
-            regex = re.search("[\d+\.]+\d+", branches_list[key+1])
+            regex = re.search("[\d+\.]+\d+", branches_list[key + 1])
             version_next = regex.group()
 
             if version_next > version:
@@ -229,7 +231,7 @@ def checkout(branches):
                 click.secho("     --{}".format(branch), fg="blue")
 
     # Prompt the user to select a release-rc
-    choice = click.prompt("Choose release (x = cancel)", type=str, default=str(len(branches_list)-1))
+    choice = click.prompt("Choose release (x = cancel)", type=str, default=str(len(branches_list) - 1))
     if choice.strip().lower() == "x":
         return
     else:
@@ -241,7 +243,12 @@ def checkout(branches):
     choice_branch = branches_list[choice]
 
     # Checkout the chosen release-rc
-    subprocess.run(["git", "checkout", choice_branch.replace("origin/", "", 1)], stdout=sys.stdout, stderr=sys.stderr)
+    try:
+        subprocess.run(["git", "checkout", choice_branch.replace("origin/", "", 1)], check=True, stdout=sys.stdout,
+                       stderr=sys.stderr)
+    except subprocess.CalledProcessError:
+        click.secho("Checkout Failed; see stderr output above", fg='red')
+        return
 
     # There are two methods for updating the gitconfig
     # Read from the API
@@ -287,7 +294,9 @@ def roll():
     try:
         try:
             # sh.git.checkout("-b", helper.get_next_release_candidate(), "origin/master", "--no-track", _err=sys.stderr, _out=sys.stdout)
-            subprocess.run(["git", "checkout", "-b", helper.get_next_release_candidate(), "origin/master", "--no-track"], stderr=sys.stderr, stdout=sys.stdout)
+            subprocess.run(
+                ["git", "checkout", "-b", helper.get_next_release_candidate(), "origin/master", "--no-track"],
+                stderr=sys.stderr, stdout=sys.stdout)
         except:
             return
 
@@ -300,9 +309,11 @@ def roll():
         else:
             mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
             # sh.git.add("releases/release-v{}".format(releases_dict["version"]))
-            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr, stdout=sys.stdout)
+            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr,
+                           stdout=sys.stdout)
             # sh.git.commit("-m", "Appending Release Branch Definition file")
-            subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr, stdout=sys.stdout)
+            subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
+                           stdout=sys.stdout)
     except:
         sys.exit()
 
@@ -318,7 +329,8 @@ def roll():
     else:
         print("Pushing to origin")
         # sh.git.push("-u", "origin", helper.get_current_release_candidate(), _out=sys.stdout)
-        subprocess.run(["git", "push", "-u", "origin", helper.get_current_release_candidate()], stderr=sys.stderr, stdout=sys.stdout)
+        subprocess.run(["git", "push", "-u", "origin", helper.get_current_release_candidate()], stderr=sys.stderr,
+                       stdout=sys.stdout)
 
     return
 
@@ -330,13 +342,13 @@ def next():
     # sh.git.fetch("--all")
     subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
 
-
     print("Creating " + helper.get_next_release_candidate() + " ...")
 
     # Change this so that "master" is configurable
     try:
         # TODO: Checkout from origin with --no-track; add -u on the push
-        subprocess.run(["git", "checkout", "-b", helper.get_next_release_candidate(), helper.get_origin_branch_name(helper.get_current_release_candidate())], stderr=sys.stderr)
+        subprocess.run(["git", "checkout", "-b", helper.get_next_release_candidate(),
+                        helper.get_origin_branch_name(helper.get_current_release_candidate())], stderr=sys.stderr)
         releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
         mygit.config.write_config(releases_dict)
 
@@ -346,7 +358,8 @@ def next():
         else:
             mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
             # sh.git.add("releases/release-v{}".format(releases_dict["version"]))
-            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr, stdout=sys.stdout)
+            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr,
+                           stdout=sys.stdout)
             try:
                 # sh.git.commit("-m", "Appending Release Branch Definition file")
                 subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
@@ -364,7 +377,8 @@ def next():
     else:
         print("Pushing to origin")
         # sh.git.push("-u", "origin", helper.get_current_release_candidate())
-        subprocess.run(["git", "push", "-u", "origin", helper.get_current_release_candidate()], stdout=sys.stdout, stderr=sys.stderr)
+        subprocess.run(["git", "push", "-u", "origin", helper.get_current_release_candidate()], stdout=sys.stdout,
+                       stderr=sys.stderr)
 
     return
 
@@ -396,7 +410,6 @@ def show_status():
 def merge_branches(branches):
     # sh.git.fetch("--all")
     subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
-
 
     for branch in branches:
         branch = branch.strip()
@@ -455,7 +468,7 @@ def deploy(environment, squash):
         if squash:
             # squash merge
             subprocess.run(["git", "merge", "--squash",
-                            "origin/release-v{}-rc{}".format(releases_dict["version"],releases_dict["candidate"])],
+                            "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"])],
                            stderr=sys.stderr, stdout=sys.stdout)
             subprocess.run(["git", "commit", "-m",
                             "Squash merge: origin/release-v{}-rc{}".format(releases_dict["version"],

@@ -72,14 +72,11 @@ def down():
     release_dict_write = copy.deepcopy(releases_dict_read)
 
     # Get all issues in project/version
-    issues_list = api.jira.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
-
     try:
         issues_list = api.jira.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
     except Exception as err:
         if 'missing-version' in err.args:
             click.secho(err, fg='red')
-
         return
 
     # Add any missing branches
@@ -92,7 +89,7 @@ def down():
                 found = True
 
         if not found:
-            click.secho("{}{}".format((branch + " ").ljust(60, '='), "> MISSING"), fg='yellow')
+            click.secho("{}{}".format((issue + " ").ljust(60, '='), "> MISSING"), fg='yellow')
             print("0: Add to local release")
             print("1: Remove from JIRA release")
             print("2: Skip")
@@ -109,29 +106,27 @@ def down():
                 for i in range(0, len(branches)):
                     print("{option}: {branch}".format(option=i, branch=branches[i]))
 
-                chosen_branch = click.prompt("Select Branch (x = cancel): ") or "x"
-                if chosen_branch.lower() == "x" or chosen_branch == "":
-                    print()
-                    continue
-
-                chosen_branch = int(chosen_branch)
+                if len(branches) == 1:
+                    chosen_branch = click.prompt("Select Branch", type=int, default=0)
+                else:
+                    chosen_branch = click.prompt("Select Branch", type=click.IntRange(0, len(branches)))
 
                 print("Selected: {branch}".format(branch=branches[chosen_branch]))
-                print()
                 release_dict_write["branches"].append(branches[chosen_branch])
+                click.secho("{}{}".format((branches[chosen_branch] + " ").ljust(60, '='), "> ADDED"), fg='green')
 
             elif choice == 1:
                 # Remove from JIRA
                 try:
                     api.jira.delete_fixversion(issue, releases_dict_read["version"])
-                    click.secho("{}{}".format((branch + " ").ljust(60, '='), "> REMOVED"), fg='green')
+                    click.secho("{}{}".format((issue + " ").ljust(60, '='), "> REMOVED"), fg='green')
                 except Exception:
                     pass
                 print()
 
             elif choice == 2:
                 # Skip
-                click.secho("{}{}".format((branch + " ").ljust(60, '='), "> SKIPPED"), fg='green')
+                click.secho("{}{}".format((issue + " ").ljust(60, '='), "> SKIPPED"), fg='green')
 
             else:
                 pass

@@ -54,6 +54,7 @@ keepbranches
 : The number of branches to keep in the release history.
 
 *Example*
+
 Given a list of release branches for a version
 ```
 (venv) will@PROWL:/mnt/f/gitrepo$ gitrelease-py checkout

@@ -489,6 +489,79 @@ def deploy(environment, squash):
     return
 
 
+@click.command()
+@click.argument('keepbranches', type=int)
+def prune(keepbranches):
+    # Read in the config from gitconfig
+    release_dict = mygit.config.read_config()
+
+    # git fetch so that our project is up to date
+    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
+    click.echo("Getting Release Branches...")
+
+    # Get the list of branches which we identify as "release" branches
+    branches_list = helper.find_branch_by_query("origin/release-v{}".format(release_dict['version']))
+    if len(branches_list) <= 0:
+        click.echo("No Release Branches found in repo")
+
+    # Remove "remotes/" from the beginning of the branch name
+    branches_list = map(lambda x: x.replace("remotes/", "", 1), branches_list)
+
+    # Remove "origin/" from the beginning of the branch name
+    branches_list = map(lambda x: x.replace("origin/", "", 1), branches_list)
+
+    # Sort the branches by version, candidate
+    branches_list = sorted(branches_list, key=helper.release_branch_comp, reverse=False)
+    # print(branches_list)
+
+    if len(branches_list) <= keepbranches:
+        click.echo("Length less than {}. Nothing to do".format(keepbranches))
+        return
+
+    print()
+    for x in range(0, len(branches_list) - keepbranches):
+        # Delete local branch
+        print("{}".format(branches_list[x]))
+
+    if not click.confirm("The above branches are going to be permanently deleted; continue?"):
+        return
+
+    for x in range(0, len(branches_list) - keepbranches):
+        # Delete local branch
+        try:
+            process = subprocess.run(["git", "branch", "-D", branches_list[x]], stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, check=True, encoding='utf-8')
+            if process.stdout:
+                click.secho(process.stdout, fg='green')
+            if process.stderr:
+                click.secho(process.stderr, fg='green')
+        except subprocess.CalledProcessError as err:
+            click.secho(err.stderr, fg='red')
+
+        # Delete remote branch
+        for origin in mygit.config.get_remote_list():
+            try:
+                process = subprocess.run(["git", "push", origin, "--delete", branches_list[x]], check=True,
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
+                if process.stdout:
+                    click.secho(process.stdout, fg='green')
+                if process.stderr:
+                    click.secho(process.stderr, fg='green')
+            except subprocess.CalledProcessError as err:
+                click.secho(err.stderr, fg='red')
+
+    print()
+    # Get new list of origin branches
+    branches_list = helper.find_branch_by_query("origin/release-v{}".format(release_dict['version']))
+
+    # Sort the branches by version, candidate
+    branches_list = sorted(branches_list, key=helper.release_branch_comp, reverse=False)
+    for branch in branches_list:
+        print(branch)
+
+    return
+
+
 @click.group()
 def cli():
     pass
@@ -503,3 +576,4 @@ cli.add_command(init)
 cli.add_command(roll)
 cli.add_command(next)
 cli.add_command(deploy)
+cli.add_command(prune)

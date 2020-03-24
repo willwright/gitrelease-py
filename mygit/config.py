@@ -1,3 +1,4 @@
+import re
 import subprocess
 
 
@@ -11,13 +12,13 @@ def read_config():
     releases_list = result.stdout.decode('utf-8')
     releases_list = releases_list.splitlines()
 
-    #print(type(releasesList))
-    #print(releasesList)
+    # print(type(releasesList))
+    # print(releasesList)
 
     releases_list = list(map(lambda x: x.split(" "), releases_list))
-    #print()
-    #print(type(releasesList))
-    #print(releasesList)
+    # print()
+    # print(type(releasesList))
+    # print(releasesList)
 
     releases_dict = {"branches": []}
     for item in releases_list:
@@ -65,3 +66,20 @@ def read_config_remote_origin():
             return item[1]
 
     return
+
+
+def get_remote_list():
+    result = subprocess.run(['git', 'config', '--local', '--get-regex', '^remote'], stdout=subprocess.PIPE)
+    config_section_list = result.stdout.decode('utf-8')
+    config_section_list = config_section_list.splitlines()
+
+    config_section_list = list(map(lambda x: x.split(" "), config_section_list))
+
+    remotes = []
+    for item in config_section_list:
+        if 'fetch' in item[0]:
+            x = re.search('.*refs\/remotes\/([\w]*)', item[1])
+            if x and x.group(1):
+                remotes.append(x.group(1))
+
+    return remotes

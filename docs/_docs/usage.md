@@ -44,7 +44,7 @@ Commands:
 ## next
 
 ## prune
-`prune` will prune a version down to a specified number of release branches. The function will delete both local and
+`prune` will prune the *current* version down to a specified number of release branches. The function will delete both local and
 remote branches from all origins.
 
 *Arguments*

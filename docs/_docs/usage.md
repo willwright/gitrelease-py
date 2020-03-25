@@ -20,6 +20,7 @@ Options:
   --help  Show this message and exit.
 
 Commands:
+  append
   checkout
   deploy
   feature
@@ -32,6 +33,20 @@ Commands:
   status
 (venv) will@PROWL:/mnt/f/gitrepo$
 ``` 
+
+## append
+Merge branches of a release branch *without* creating a new release candidate.
+
+*Example*
+
+Given that the current release branch checkout out is `release-v4.1.0-rc20`
+
+Given that there are two branches in the current release
+* origin/REPO-1
+* origin/REPO-5
+
+`append` will merge `origin/REPO-1` and `origin/REPO-5` into `release-v4.1.0-rc20` and then push to `origin`. Note that
+the candidate (rc20) is *not* incremented.
 
 ## checkout
 

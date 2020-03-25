@@ -3,6 +3,7 @@ import subprocess
 import sys
 
 import click
+import copy
 
 import api
 import jira
@@ -10,7 +11,13 @@ import mygit
 from utils import helper
 
 
-@click.command()
+@click.group()
+def cli():
+    # This definition has to come before all the others other wise @cli will be undefined
+    pass
+
+
+@cli.command()
 @click.argument('direction', type=click.Choice([jira.sync.Direction.UP.value, jira.sync.Direction.DOWN.value]))
 def jirasync(direction):
     if direction == jira.sync.Direction.UP.value:
@@ -21,7 +28,7 @@ def jirasync(direction):
     return
 
 
-@click.command()
+@cli.command()
 def rm():
     print("Branches found:")
     release_dict = mygit.config.read_config()
@@ -63,7 +70,7 @@ def rm():
     return
 
 
-@click.command()
+@cli.command()
 def feature():
     release_dict = mygit.config.read_config()
 
@@ -135,7 +142,7 @@ def find_feature():
     return branches[chosen_branch].replace("remotes/", "", 1)
 
 
-@click.command()
+@cli.command()
 def init():
     release_dict = mygit.config.read_config()
     if "projectslug" in release_dict and release_dict["projectslug"]:
@@ -181,7 +188,7 @@ def init():
     return
 
 
-@click.command()
+@cli.command()
 @click.option('-b', '--branches', 'branches', is_flag=True)
 def checkout(branches):
     # Read in the config from gitconfig
@@ -281,7 +288,7 @@ def checkout(branches):
     return
 
 
-@click.command()
+@cli.command()
 def roll():
     releases_dict = mygit.config.read_config()
 
@@ -335,7 +342,7 @@ def roll():
     return
 
 
-@click.command()
+@cli.command()
 def next():
     releases_dict = mygit.config.read_config()
 
@@ -383,7 +390,7 @@ def next():
     return
 
 
-@click.command()
+@cli.command()
 def status():
     show_status()
     return
@@ -436,7 +443,7 @@ def find_conflicts():
         return False
 
 
-@click.command()
+@cli.command()
 @click.option('-s', '--squash', 'squash', is_flag=True)
 @click.argument('environment', type=click.Choice(["dev", "stage", "prod"]))
 def deploy(environment, squash):
@@ -489,7 +496,7 @@ def deploy(environment, squash):
     return
 
 
-@click.command()
+@cli.command()
 @click.argument('keepbranches', type=int)
 def prune(keepbranches):
     # Read in the config from gitconfig
@@ -562,18 +569,44 @@ def prune(keepbranches):
     return
 
 
-@click.group()
-def cli():
-    pass
+@cli.command()
+def append():
+    releases_dict_read = mygit.config.read_config()
+    releases_dict_write = copy.deepcopy(releases_dict_read)
+
+    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
+
+    try:
+        subprocess.run(["git", "pull"], stderr=sys.stderr)
+
+        # TODO: Write config to API or Local
+        if helper.use_api_share():
+            pass
+        else:
+            mygit.releases.write_git_release(releases_dict_read["version"], releases_dict_read["branches"])
+            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict_read["version"])],
+                           stderr=sys.stderr,
+                           stdout=sys.stdout)
+            try:
+                subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
+                               stdout=sys.stdout)
+            except:
+                pass
+    except:
+        sys.exit()
+
+    merge_branches(releases_dict_read["branches"])
+
+    has_conflicts = find_conflicts()
+    if has_conflicts:
+        print("Not pushing to origin")
+    else:
+        print("Pushing to origin")
+        subprocess.run(["git", "push", "-u", "origin", helper.get_current_release_candidate()], stdout=sys.stdout,
+                       stderr=sys.stderr)
+
+    return
 
 
-cli.add_command(status)
-cli.add_command(checkout)
-cli.add_command(rm)
-cli.add_command(feature)
-cli.add_command(jirasync)
-cli.add_command(init)
-cli.add_command(roll)
-cli.add_command(next)
-cli.add_command(deploy)
-cli.add_command(prune)
+if __name__ == '__main__':
+    cli()

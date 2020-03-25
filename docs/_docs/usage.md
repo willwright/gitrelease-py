@@ -24,7 +24,7 @@ Commands:
   deploy
   feature
   init
-  jirasync
+  jira
   next
   prune
   rm
@@ -39,7 +39,14 @@ Commands:
 
 ## init
 
-## jirasync
+## jira
+Updates JIRA with fixVersion for each branch in the current release or updates the current release with the issues from
+JIRA.
+
+*Arguemnts*
+direction
+ : *remote* : Update JIRA issues with fixVersion
+ : *local* : Update local releease with issues from JIRA
 
 ## next
 

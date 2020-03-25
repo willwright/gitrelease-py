@@ -1,7 +1,6 @@
+import click
 import copy
 from enum import Enum
-
-import click
 
 import api
 import mygit
@@ -9,8 +8,8 @@ from utils import helper
 
 
 class Direction(Enum):
-    UP = "up"
-    DOWN = "down"
+    UP = "remote"
+    DOWN = "local"
 
 
 def up():
@@ -27,7 +26,9 @@ def up():
             except Exception:
                 return
             finally:
-                click.secho("fixVersion: {} created for project: {}".format(releases_dict_read["version"], releases_dict_read["projectslug"]), fg='green')
+                click.secho("fixVersion: {} created for project: {}".format(releases_dict_read["version"],
+                                                                            releases_dict_read["projectslug"]),
+                            fg='green')
                 issues_list = api.jira.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
 
         else:

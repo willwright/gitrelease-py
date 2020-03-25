@@ -19,7 +19,13 @@ def cli():
 
 @cli.command()
 @click.argument('direction', type=click.Choice([jira.sync.Direction.UP.value, jira.sync.Direction.DOWN.value]))
-def jirasync(direction):
+def jira(direction):
+    """
+    Updates the branches in this release from JIRA or updates JIRA with the branches in this release.
+
+    DIRECTION dictates which artifact is the source and which is the destination. remote: update JIRA.
+    local: update gitrelease
+    """
     if direction == jira.sync.Direction.UP.value:
         jira.sync.up()
     elif direction == jira.sync.Direction.DOWN.value:
@@ -45,7 +51,7 @@ def rm():
             return
 
     # Remove the FixVersion in JIRA
-    jira_send = click.prompt("Send to JIRA:", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
+    jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
 
     if jira_send == "y":
         jira_send = True
@@ -87,7 +93,8 @@ def feature():
         # Write the dictionary to DynamoDB
         api.awsgateway.writerelease(release_dict)
 
-        jira_send = click.prompt("Send to JIRA", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
+        jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False),
+                                 default="y")
 
         if jira_send == "y":
             jira_send = True

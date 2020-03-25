@@ -58,7 +58,8 @@ the candidate (rc20) is *not* incremented.
 Updates JIRA with fixVersion for each branch in the current release or updates the current release with the issues from
 JIRA.
 
-*Arguemnts*
+*Arguments*
+
 direction
  : *remote* : Update JIRA issues with fixVersion
  : *local* : Update local releease with issues from JIRA

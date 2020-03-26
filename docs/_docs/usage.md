@@ -165,6 +165,39 @@ Select a branch to remove (x = cancel) [x]:
 
 If a search argument is provided the list of branches will be filtered by the search term.
 
+*Example*
+```
+(venv) will@PROWL:/mnt/f/gitrepo$ gitrelease-py rm 3673
+Branches found:
+0: origin/bugfix/REPO-3652
+1: origin/bugfix/REPO-3498
+2: origin/feature/REPO-3673-edi-import-lock <---
+3: origin/bugfix/REPO-2660
+4: origin/origin/bugfix/REPO-3430
+5: origin/origin/bugfix/REPO-3353
+6: origin/bugfix/REPO-2391-fixing-gift-card-add-twice-to-refund
+Select a branch to remove (x = cancel) [2]:
+Update JIRA fixVersion (y, n) [y]: n
+Removed: origin/feature/REPO-3673-edi-import-lock
+
+Master Branch: master
+Staging Branch: staging
+Development Branch: develop
+Checked out Branch: release-v4.1.0-rc20
+
+----------------------------------------------
+Current Version: 4.1.0
+Current Candidate: 20
+
+Branches in this release:
+origin/bugfix/REPO-3652
+origin/bugfix/REPO-3498
+origin/bugfix/REPO-2660
+origin/origin/bugfix/REPO-3430
+origin/origin/bugfix/REPO-3353
+origin/bugfix/REPO-2391-fixing-gift-card-add-twice-to-refund
+```
+
 *Arguments*
 
 SEARCH

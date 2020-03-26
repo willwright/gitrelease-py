@@ -62,7 +62,7 @@ JIRA.
 
 *Arguments*
 
-direction
+DIRECTION
  : *remote* : Update JIRA issues with fixVersion
  : *local* : Update local releease with issues from JIRA
 
@@ -74,7 +74,7 @@ remote branches from all origins.
 
 *Arguments*
 
-keepbranches
+KEEPBRANCHES
 
 : The number of branches to keep in the release history.
 
@@ -139,6 +139,28 @@ Getting Release Branches...
 ```
 
 ## rm
+Remove a branch from the release.
+
+If no search argument is provided the user will be given a list of branches to choose from.
+
+*Example*
+
+```
+(venv) will@PROWL:/mnt/f/gitrepo$ gitrelease-py rm
+Branches found:
+0: origin/bugfix/REPO-3498
+1: origin/feature/REPO-3673-edi-import-lock
+2: origin/bugfix/REPO-3669-fixing-wrong-clutch-bd-reward-amount-for-multi-shipping
+3: origin/bugfix/REPO-3652
+Select a branch to remove (x = cancel) [x]:
+```
+
+If a search argument is provided the list of branches will be filtered by the search term.
+
+*Arguments*
+
+SEARCH
+: a needle to search for in branches haystack
 
 ## roll
 

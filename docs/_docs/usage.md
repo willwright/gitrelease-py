@@ -34,6 +34,8 @@ Commands:
 (venv) will@PROWL:/mnt/f/gitrepo$
 ``` 
 
+Help flags (`--help` or `-h`) are available on all commands for outputting additional information about each command.  
+
 ## append
 Merge branches of a release branch *without* creating a new release candidate.
 

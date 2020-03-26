@@ -23,7 +23,8 @@ def jira(direction):
     """
     Updates the branches in this release from JIRA or updates JIRA with the branches in this release.
 
-    DIRECTION dictates which artifact is the source and which is the destination. remote: update JIRA.
+    remote: update JIRA
+    
     local: update gitrelease
     """
     if direction == jira.sync.Direction.UP.value:

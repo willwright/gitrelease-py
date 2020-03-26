@@ -46,28 +46,23 @@ def rm(search):
     release_dict_read = mygit.config.read_config()
     release_dict_write = copy.deepcopy(release_dict_read)
 
-    show_branches = []
-    # If the search argument was provided filter the list of branches to show by the search argument
-    if search:
-        for i in range(0, len(release_dict_read["branches"])):
-            if search in release_dict_read["branches"][i]:
-                show_branches.append(release_dict_read["branches"][i])
-    else:
-        show_branches = release_dict_read["branches"]
-
     # No branches found
-    if len(show_branches) <= 0:
-        print("No branches found")
+    if len(release_dict_read["branches"]) <= 0:
+        click.secho("No branches found", fg='red')
         return
 
-    # Show the branches in the filtered (or unfiltered) list
     print("Branches found:")
-    for i in range(0, len(show_branches)):
-        print("{}: {}".format(i, show_branches[i]))
+    search_match_branch_index = []
+    for i in range(0, len(release_dict_read["branches"])):
+        if search and search in release_dict_read["branches"][i]:
+            click.secho("{}: {} <---".format(i, release_dict_read["branches"][i]), fg='blue')
+            search_match_branch_index.append(i)
+        else:
+            click.secho("{}: {}".format(i, release_dict_read["branches"][i]))
 
     # If there is only one branch in the list to show, default the prompt to that branch
-    if len(show_branches) == 1:
-        default = 0
+    if len(search_match_branch_index) == 1:
+        default = search_match_branch_index[0]
     else:
         default = "x"
 
@@ -108,76 +103,96 @@ def rm(search):
 
 
 @cli.command()
-def feature():
-    release_dict = mygit.config.read_config()
+@click.argument('search', type=str, required=False)
+def feature(search):
+    """
+    Add a feature to the release.
 
-    branch = find_feature()
+    SEARCH: search branches haystack for the given SEARCH term
+    """
+    release_dict_read = mygit.config.read_config()
+    release_dict_write = copy.deepcopy(release_dict_read)
+
+    branch = find_feature(search)
     if branch:
-        if branch in release_dict["branches"]:
+        if branch in release_dict_read["branches"]:
             print("{}: is already included in this release. Skipping...".format(branch))
             return
-
-        # Add the branch to the release dictionary
-        release_dict["branches"].append(branch)
-        # Write the dictionary to git-config
-        mygit.config.write_config(release_dict)
-        # Write the dictionary to DynamoDB
-        api.awsgateway.writerelease(release_dict)
 
         jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False),
                                  default="y")
 
         if jira_send == "y":
-            jira_send = True
-        else:
-            jira_send = False
-
-        if jira_send:
             jira_key = helper.parse_jira_key(branch)
-            api.jira.add_fixveresion(jira_key, release_dict["version"])
+            api.jira.add_fixveresion(jira_key, release_dict_read["version"])
 
+        # Add the branch to the release dictionary
+        release_dict_write["branches"].append(branch)
+
+        # Write the dictionary to git-config
+        mygit.config.write_config(release_dict_write)
+
+        # @TODO: Add API configuration conditional
+        # Write the dictionary to DynamoDB
+        api.awsgateway.writerelease(release_dict_write)
+
+        click.secho("Added: {}".format(branch), fg='green')
+
+    print()
     show_status()
 
     return
 
 
-def find_feature():
-    print("Find a branch by type, or search for it by name")
-    print("0: Search by name")
-    print("1: List all feature/ branches")
-    print("2: List all bugfix/ branches")
-    print("3: List all hotfix/ branches")
-
-    search_type = click.prompt("Search by", type=click.IntRange(0, 3), default=0)
-
-    feature_query = ""
-    if search_type == 0:
-        feature_query = click.prompt("Enter part of a Feature Branch name (we will search for it)", type=str).strip()
-    elif search_type == 1:
-        feature_query = "feature/"
-    elif search_type == 2:
-        feature_query = "bugfix/"
-    elif search_type == 3:
-        feature_query = "hotfix/"
+def find_feature(needle):
+    if needle:
+        feature_query = needle
     else:
-        return
+        print("Find a branch by type, or search for it by name")
+        print("0: Search by name")
+        print("1: List all feature/ branches")
+        print("2: List all bugfix/ branches")
+        print("3: List all hotfix/ branches")
+
+        search_type = click.prompt("Search by", type=click.IntRange(0, 3), default=0)
+
+        feature_query = ""
+        if search_type == 0:
+            feature_query = click.prompt("Enter part of a Feature Branch name (we will search for it)",
+                                         type=str).strip()
+        elif search_type == 1:
+            feature_query = "feature/"
+        elif search_type == 2:
+            feature_query = "bugfix/"
+        elif search_type == 3:
+            feature_query = "hotfix/"
+        else:
+            return
 
     branches = helper.find_branch_by_query(feature_query)
 
-    assert len(branches) > 0, "No branches found matching your query"
+    if len(branches) <= 0:
+        click.secho("No branches found", fg='red')
+        return
 
     for i in range(0, len(branches)):
         print("{option}: {branch}".format(option=i, branch=branches[i]))
 
-    chosen_branch = input("Select Branch (x = cancel): ") or "x"
-    if chosen_branch.lower() == "x" or chosen_branch == "":
+    # If there is only one branch in the list to show, default the prompt to that branch
+    if len(branches) == 1:
+        default = 0
+    else:
+        default = "x"
+
+    choice = click.prompt("Select branch (x = cancel)", type=str, default=default)
+    try:
+        choice = int(choice)
+    except:
         return
 
-    chosen_branch = int(chosen_branch)
+    print("Selected: {branch}".format(branch=branches[choice]))
 
-    print("Selected: {branch}".format(branch=branches[chosen_branch]))
-
-    return branches[chosen_branch].replace("remotes/", "", 1)
+    return branches[choice].replace("remotes/", "", 1)
 
 
 @cli.command()

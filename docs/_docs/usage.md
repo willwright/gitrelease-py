@@ -53,6 +53,14 @@ the candidate (rc20) is *not* incremented.
 ## checkout
 
 ## feature
+Add a branch to the release.
+
+
+
+*Arguments*
+
+SEARCH
+: Search branches haystack for the given SEARCH term
 
 ## init
 

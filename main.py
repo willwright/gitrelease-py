@@ -24,7 +24,7 @@ def jira(direction):
     Updates the branches in this release from JIRA or updates JIRA with the branches in this release.
 
     remote: update JIRA
-    
+
     local: update gitrelease
     """
     if direction == jira.sync.Direction.UP.value:
@@ -36,20 +36,46 @@ def jira(direction):
 
 
 @cli.command()
-def rm():
-    print("Branches found:")
-    release_dict = mygit.config.read_config()
-    for i in range(0, len(release_dict["branches"])):
-        print("{}: {}".format(i, release_dict["branches"][i]))
+@click.argument('search', type=str, required=False)
+def rm(search):
+    """
+    Removes a branch from the release
 
-    choice = click.prompt("Select a branch to remove (x = cancel)", type=str, default="x")
-    if choice.lower().strip() == "x":
-        return
+    SEARCH: a needle to search for in branch haystack
+    """
+    release_dict_read = mygit.config.read_config()
+    release_dict_write = copy.deepcopy(release_dict_read)
+
+    show_branches = []
+    # If the search argument was provided filter the list of branches to show by the search argument
+    if search:
+        for i in range(0, len(release_dict_read["branches"])):
+            if search in release_dict_read["branches"][i]:
+                show_branches.append(release_dict_read["branches"][i])
     else:
-        try:
-            choice = int(choice)
-        except:
-            return
+        show_branches = release_dict_read["branches"]
+
+    # No branches found
+    if len(show_branches) <= 0:
+        print("No branches found")
+        return
+
+    # Show the branches in the filtered (or unfiltered) list
+    print("Branches found:")
+    for i in range(0, len(show_branches)):
+        print("{}: {}".format(i, show_branches[i]))
+
+    # If there is only one branch in the list to show, default the prompt to that branch
+    if len(show_branches) == 1:
+        default = 0
+    else:
+        default = "x"
+
+    choice = click.prompt("Select a branch to remove (x = cancel)", type=str, default=default)
+    try:
+        choice = int(choice)
+    except:
+        return
 
     # Remove the FixVersion in JIRA
     jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
@@ -60,17 +86,21 @@ def rm():
         jira_send = False
 
     if jira_send:
-        jira_key = helper.parse_jira_key(release_dict["branches"][choice])
-        api.jira.delete_fixversion(jira_key, release_dict["version"])
+        jira_key = helper.parse_jira_key(release_dict_read["branches"][choice])
+        api.jira.delete_fixversion(jira_key, release_dict_read["version"])
 
     # Remove the branch from the Dictionary
-    del release_dict["branches"][choice]
+    del release_dict_write["branches"][choice]
 
     # Write the dictionary to git-config
-    mygit.config.write_config(release_dict)
+    mygit.config.write_config(release_dict_write)
 
+    click.secho("Removed: {}".format(release_dict_read["branches"][choice]), fg='green')
+    print()
+
+    # @TODO: change to conditional based on configuration
     # Write the dictionary to DynamoDB
-    api.awsgateway.writerelease(release_dict)
+    api.awsgateway.writerelease(release_dict_write)
 
     show_status()
 

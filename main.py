@@ -404,30 +404,33 @@ def next():
 
     print("Creating " + helper.get_next_release_candidate() + " ...")
 
-    # Change this so that "master" is configurable
+    # @TODO: Change this so that "master" is configurable
     try:
-        # TODO: Checkout from origin with --no-track; add -u on the push
-        subprocess.run(["git", "checkout", "-b", helper.get_next_release_candidate(),
-                        helper.get_origin_branch_name(helper.get_current_release_candidate())], stderr=sys.stderr)
-        releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
-        mygit.config.write_config(releases_dict)
-
-        # TODO: Write config to API or Local
-        if helper.use_api_share():
-            pass
-        else:
-            mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
-            # sh.git.add("releases/release-v{}".format(releases_dict["version"]))
-            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr,
-                           stdout=sys.stdout)
-            try:
-                # sh.git.commit("-m", "Appending Release Branch Definition file")
-                subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
-                               stdout=sys.stdout)
-            except:
-                pass
-    except:
+        subprocess.run(["git", "checkout", "--no-track", "-b", helper.get_next_release_candidate(),
+                        helper.get_origin_branch_name(helper.get_current_release_candidate())], stderr=sys.stderr,
+                       check=True)
+    except subprocess.CalledProcessError as err:
+        click.secho("Error creating the next release branch. This usually happens when there is a local release "
+                    "candidate that has not been pushed to origin", fg='red')
         sys.exit()
+
+    releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
+    mygit.config.write_config(releases_dict)
+
+    # TODO: Write config to API or Local
+    if helper.use_api_share():
+        pass
+    else:
+        mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
+        # sh.git.add("releases/release-v{}".format(releases_dict["version"]))
+        subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr,
+                       stdout=sys.stdout)
+        try:
+            # sh.git.commit("-m", "Appending Release Branch Definition file")
+            subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
+                           stdout=sys.stdout)
+        except:
+            sys.exit()
 
     merge_branches(releases_dict["branches"])
 

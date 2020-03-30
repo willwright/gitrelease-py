@@ -63,6 +63,9 @@ SEARCH
 : Search branches haystack for the given SEARCH term
 
 ## init
+Initialize a release. Creates all of the artifacts neccessary to use `gitrelease-py`.
+
+This command can also be used to update any of the properties that are set. 
 
 ## jira
 Updates JIRA with fixVersion for each branch in the current release or updates the current release with the issues from

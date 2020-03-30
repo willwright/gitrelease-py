@@ -197,46 +197,77 @@ def find_feature(needle):
 
 @cli.command()
 def init():
-    release_dict = mygit.config.read_config()
-    if "projectslug" in release_dict and release_dict["projectslug"]:
-        projectslug = click.prompt("Choose a projectslug", default=release_dict["projectslug"], type=str)
+    """
+    Initialize a release.
+    """
+    release_dict_read = mygit.config.read_config()
+    release_dict_write = copy.deepcopy(release_dict_read)
+
+    if "masterbranch" not in release_dict_read or not release_dict_read["masterbranch"]:
+        master_branch_choice = click.prompt("Set the master branch", type=str)
+        if master_branch_choice:
+            release_dict_write["masterbranch"] = master_branch_choice.strip()
+
+    if "stagebranch" not in release_dict_read or not release_dict_read["stagebranch"]:
+        stage_branch_choice = click.prompt("Set the stage branch", type=str)
+        if stage_branch_choice:
+            release_dict_write["stagebranch"] = stage_branch_choice.strip()
+
+    if "devbranch" not in release_dict_read or not release_dict_read["devbranch"]:
+        dev_branch_choice = click.prompt("Set the dev branch", type=str)
+        if dev_branch_choice:
+            release_dict_write["devbranch"] = dev_branch_choice.strip()
+
+    if "projectslug" in release_dict_read and release_dict_read["projectslug"]:
+        projectslug = click.prompt("Choose a projectslug", default=release_dict_read["projectslug"], type=str)
     else:
         projectslug = click.prompt("Choose a projectslug", type=str)
 
-    release_dict["projectslug"] = projectslug.strip()
+    if projectslug:
+        release_dict_write["projectslug"] = projectslug.strip()
 
     # TODO: Check that the slug and version don't already exist; if they do prompt for confirmation
     # if slugExists(projectslug):
     #    print("That slug already exists")
     #    # TODO: Implement a confirmation here
 
-    release_version = click.prompt("Enter Release Version (e.g. 16_07 or 1.0.0)", type=str)
+    if "version" in release_dict_read and release_dict_read["version"]:
+        default = release_dict_read["version"]
+    else:
+        default = None
+
+    release_version = click.prompt("Enter Release Version (e.g. 16_07 or 1.0.0)", type=str, default=default)
     release_version = release_version.strip()
     if not release_version:
         click.echo("Release Version is required")
         return
 
-    release_dict["version"] = release_version
-    release_dict["current"] = "release-v" + release_version
+    release_dict_write["version"] = release_version
+    release_dict_write["current"] = "release-v" + release_version
+
+    if "candidate" in release_dict_read and release_dict_read["candidate"]:
+        default = release_dict_read["candidate"]
+    else:
+        default = 0
 
     release_candidate = click.prompt(
-        "Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1)", type=int, default=0)
-    release_dict["candidate"] = int(release_candidate)
-
-    show_status()
+        "Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1)", type=int, default=default)
+    release_dict_write["candidate"] = int(release_candidate.strip())
 
     choice = click.prompt("Clear branches (or inherit from current config)", type=click.Choice(["y", "n"]), default="n")
 
     if choice == "y":
-        release_dict["branches"].clear()
+        release_dict_write["branches"].clear()
     elif choice != "n":
         return
 
     # Write release to config
-    mygit.config.write_config(release_dict)
+    mygit.config.write_config(release_dict_write)
 
     # Write release to API
-    api.awsgateway.writerelease(release_dict)
+    api.awsgateway.writerelease(release_dict_write)
+
+    show_status()
 
     return
 
@@ -455,9 +486,9 @@ def status():
 def show_status():
     releases_dict = mygit.config.read_config()
 
-    click.echo("Master Branch: {}".format(releases_dict["masterbranch"]))
-    click.echo("Staging Branch: {}".format(releases_dict["stagebranch"]))
-    click.echo("Development Branch: {}".format(releases_dict["devbranch"]))
+    click.echo("Master Branch: {}".format(releases_dict["masterbranch"] if "masterbranch" in releases_dict else "None"))
+    click.echo("Staging Branch: {}".format(releases_dict["stagebranch"] if "stagebranch" in releases_dict else "None"))
+    click.echo("Development Branch: {}".format(releases_dict["devbranch"] if "devbranch" in releases_dict else "None"))
     click.echo("Checked out Branch: {}".format(helper.get_current_checkout_branch()))
     click.echo("----------------------------------------------")
     click.echo("Current Version: {}".format(releases_dict["version"]))

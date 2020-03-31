@@ -8,8 +8,8 @@ from utils import helper
 
 
 class Direction(Enum):
-    UP = "remote"
-    DOWN = "local"
+    UP = "push"
+    DOWN = "pull"
 
 
 def up():

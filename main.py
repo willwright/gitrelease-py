@@ -293,7 +293,7 @@ def checkout(branches):
     branches_list = map(lambda x: x.replace("remotes/", "", 1), branches_list)
 
     # Sort the branches by version, candidate
-    branches_list = sorted(branches_list, key=helper.release_branch_comp, reverse=False)
+    branches_list = helper.sort_branches(list(branches_list))
 
     # Print of the list of branches in choice format
     for key in range(0, len(branches_list)):
@@ -607,8 +607,7 @@ def prune(keepbranches):
     branches_list = map(lambda x: x.replace("origin/", "", 1), branches_list)
 
     # Sort the branches by version, candidate
-    branches_list = sorted(branches_list, key=helper.release_branch_comp, reverse=False)
-    # print(branches_list)
+    branches_list = helper.sort_branches(list(branches_list))
 
     if len(branches_list) <= keepbranches:
         click.echo("Length less than {}. Nothing to do".format(keepbranches))

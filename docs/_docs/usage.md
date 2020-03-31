@@ -50,7 +50,12 @@ Given that there are two branches in the current release
 `append` will merge `origin/REPO-1` and `origin/REPO-5` into `release-v4.1.0-rc20` and then push to `origin`. Note that
 the candidate (rc20) is *not* incremented.
 
+## config
+Set credentials for services integrations
+
+
 ## checkout
+
 
 ## feature
 Add a branch to the release.

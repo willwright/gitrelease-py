@@ -8,6 +8,7 @@ import copy
 import api
 import jira
 import mygit
+from utils import configuration
 from utils import helper
 
 
@@ -251,7 +252,8 @@ def init():
         default = 0
 
     release_candidate = click.prompt(
-        "Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1)", type=int, default=default)
+        "Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1)", type=int,
+        default=default)
     release_dict_write["candidate"] = int(release_candidate.strip())
 
     choice = click.prompt("Clear branches (or inherit from current config)", type=click.Choice(["y", "n"]), default="n")
@@ -691,6 +693,51 @@ def append():
         print("Pushing to origin")
         subprocess.run(["git", "push", "-u", "origin", helper.get_current_release_candidate()], stdout=sys.stdout,
                        stderr=sys.stderr)
+
+    return
+
+
+@cli.command()
+@click.argument('service', type=click.Choice([configuration.Services.JIRA.value, configuration.Services.GITHUB.value]))
+def config(service):
+    """
+    Set credentials for services integrations
+    """
+    config_dict_read = configuration.load()
+    config_dict_write = copy.deepcopy(config_dict_read)
+
+    if service == configuration.Services.JIRA.value:
+        if "jira" in config_dict_read and "username" in config_dict_read["jira"]:
+            default = config_dict_read["jira"]["username"]
+        else:
+            default = None
+        input = click.prompt("JIRA username", type=str, default=default)
+
+        config_dict_write["jira"]["username"] = input.strip()
+
+        if "jira" in config_dict_read and "password" in config_dict_read["jira"]:
+            default = "*" * len(config_dict_read["jira"]["password"])
+        else:
+            default = None
+        input = click.prompt("JIRA password", type=str, default=default)
+
+        if not input == default:
+            config_dict_write["jira"]["password"] = input.strip()
+    elif service == configuration.Services.GITHUB.value:
+        if "github" in config_dict_read and "bearer" in config_dict_read["github"]:
+            default = "Bearer " + "*" * (len(config_dict_read["github"]["bearer"]) - len("Bearer "))
+        else:
+            default = None
+
+        input = click.prompt("GitHub token", type=str, default=default)
+
+        if not input == default:
+            inputParts = input.split(" ")
+            input = "Bearer " + inputParts[len(inputParts) - 1]
+
+            config_dict_write["github"]["bearer"] = input
+
+    configuration.save(config_dict_write)
 
     return
 

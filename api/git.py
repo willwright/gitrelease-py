@@ -1,14 +1,16 @@
-from utils import helper
-import mygit
 import re
+
 import requests
+
+import mygit
+import utils.configuration
 
 
 def get_branches_in_release(refName):
     # Format refName for use in gitHub GraphQL Query
     # Requires format "release-vX.XX.X-rcYY
     if refName.lower().startswith("origin/"):
-        refName = refName.replace("origin/","")
+        refName = refName.replace("origin/", "")
 
     # Read the remote "origin" > url value from gitconfig
     remoteOriginUrl = mygit.config.read_config_remote_origin()
@@ -28,13 +30,15 @@ def get_branches_in_release(refName):
     releasePart = refName[0:rcIndex]
 
     # github GraphQL query
-    query = "query {{repository(owner: \"{}\", name:\"{}\") {{ object(expression: \"{}:releases/{}\") {{ ... on Blob {{ text }} }} }} }}".format(owner, repository, refName, releasePart)
+    query = "query {{repository(owner: \"{}\", name:\"{}\") {{ object(expression: \"{}:releases/{}\") {{ ... on Blob {{ text }} }} }} }}".format(
+        owner, repository, refName, releasePart)
     jsonData = {"query": query}
 
-    config_dict = helper.load_configuration()
+    config_dict = utils.configuration.load()
     response = requests.post('https://api.github.com/graphql',
                              json=jsonData,
-                             headers={'Content-Type': 'application/json', 'Authorization': config_dict['github']['bearer']}
+                             headers={'Content-Type': 'application/json',
+                                      'Authorization': config_dict['github']['bearer']}
                              )
 
     branchList = []

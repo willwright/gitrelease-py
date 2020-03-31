@@ -114,6 +114,7 @@ def feature(search):
     release_dict_read = mygit.config.read_config()
     release_dict_write = copy.deepcopy(release_dict_read)
 
+    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
     branch = find_feature(search)
     if branch:
         if branch in release_dict_read["branches"]:
@@ -378,7 +379,6 @@ def checkout(branches):
 def roll():
     releases_dict = mygit.config.read_config()
 
-    # sh.git.fetch("--all")
     subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
 
     print("Creating " + helper.get_next_release_candidate() + " ...")
@@ -401,10 +401,8 @@ def roll():
             pass
         else:
             mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
-            # sh.git.add("releases/release-v{}".format(releases_dict["version"]))
             subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr,
                            stdout=sys.stdout)
-            # sh.git.commit("-m", "Appending Release Branch Definition file")
             subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
                            stdout=sys.stdout)
     except:

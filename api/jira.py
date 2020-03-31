@@ -1,13 +1,12 @@
-import json
-
 import click
+import json
 import requests
 
-from utils import helper
+import utils.configuration
 
 
 def add_fixveresion(jira_key, version):
-    config_dict = helper.load_configuration()
+    config_dict = utils.configuration.load()
 
     data = {
         "update": {
@@ -35,7 +34,7 @@ def add_fixveresion(jira_key, version):
 
 
 def delete_fixversion(jira_key, version):
-    config_dict = helper.load_configuration()
+    config_dict = utils.configuration.load()
 
     data = {
         "update": {
@@ -62,7 +61,7 @@ def delete_fixversion(jira_key, version):
 
 
 def search_issues(projectslug, version):
-    config_dict = helper.load_configuration()
+    config_dict = utils.configuration.load()
 
     data = {
         "expand": [],
@@ -96,7 +95,7 @@ def search_issues(projectslug, version):
 
 
 def create_fixversion(projectslug, version):
-    config_dict = helper.load_configuration()
+    config_dict = utils.configuration.load()
 
     data = {
         "archived": "false",

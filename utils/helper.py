@@ -1,9 +1,10 @@
-import click
-import mygit
-import os
 import re
 import subprocess
+
+import os
 import yaml
+
+import mygit
 
 
 def get_current_release_candidate():
@@ -21,7 +22,7 @@ def get_next_release_candidate():
 def release_sort_hash(version, candidate):
     key = 0
     for part in version.split("."):
-        key += int(part)*100
+        key += int(part) * 100
 
     key += int(candidate)
 
@@ -86,21 +87,6 @@ def get_origin_branch_name(branch):
         return branch
     else:
         return "origin/" + branch
-
-
-def load_configuration():
-    script_dir = os.path.expanduser("~/.gitrelease")
-
-    config_dict = {}
-    with open(script_dir + "/config.yaml", "r") as stream:
-        try:
-            config_dict = yaml.safe_load(stream)
-        except yaml.YAMLError as err:
-            print(err)
-        except:
-            print("Error")
-
-    return config_dict
 
 
 def get_branches_in_release(release_branch):

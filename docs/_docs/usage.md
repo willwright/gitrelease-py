@@ -51,16 +51,57 @@ Given that there are two branches in the current release
 the candidate (rc20) is *not* incremented.
 
 ## config
-Set credentials for services integrations
+Set credentials for service integrations
 
 
 ## checkout
+Checkout a specific release candidate
 
+*Options*
+
+`-b`, `--branches`
+: option will list the branches in each release candidate
+
+*Example*
+```
+(venv) will@PROWL:/mnt/f/gitrepo$ gitrelease-py checkout -b
+Fetching origin
+Getting Release Branches...
+  0: origin/release-v3.32.0-rc41
+     --origin/bugfix/REPO-2660
+     --origin/bugfix/REPO-3526
+     --origin/feature/REPO-2430
+     --origin/feature/REPO-3082
+     --origin/feature/REPO-3087
+     --origin/feature/REPO-3622-admin-RMA-changes
+     --origin/bugfix/REPO-3570-adjust-can-creditmemo-method
+     --origin/bugfix/REPO-3592-checkout-cartId-issue
+     --origin/feature/REPO-3597
+     --origin/bugfix/REPO-3613-free-shipping-code-admin
+     --origin/bugfix/REPO-3564-fixing-rma-other-reason-processing
+     --origin/feature/REPO-3349-refactor-giftcard-worker
+     --origin/feature/REPO-3599
+     --origin/feature/REPO-3629-add-columns-to-return-items-grid
+     --origin/bugfix/REPO-3638
+     --origin/bugfix/REPO-3572
+     --origin/integration/REPO-3658
+```
+
+##deploy
+Merge the current release candidate into the chosen ENVIRONMENT branch
+
+*Arguments*
+
+ENVIRONMENT
+: the environment to merge the current releaes candidate into
+
+*Options*
+
+`-s`, `--squash`
+: Use squash merge instead of recursive merge
 
 ## feature
 Add a branch to the release.
-
-
 
 *Arguments*
 
@@ -79,10 +120,11 @@ JIRA.
 *Arguments*
 
 DIRECTION
- : *remote* : Update JIRA issues with fixVersion
- : *local* : Update local releease with issues from JIRA
+ : *push* : Update JIRA issues with fixVersion
+ : *pull* : Update local release with issues from JIRA
 
 ## next
+Create a new release candidate by merging branches. Release candidate starts from current release candidate.
 
 ## prune
 `prune` will prune the *current* version down to a specified number of release branches. The function will delete both local and
@@ -212,5 +254,7 @@ SEARCH
 : a needle to search for in branches haystack
 
 ## roll
+Create a new release candidate by merging branches. Release candidate starts from master.
 
 ## status
+Print out details about the current release candidate

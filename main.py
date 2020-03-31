@@ -6,7 +6,7 @@ import click
 import copy
 
 import api
-import jira
+import jira as jira_module
 import mygit
 from utils import configuration
 from utils import helper
@@ -19,19 +19,20 @@ def cli():
 
 
 @cli.command()
-@click.argument('direction', type=click.Choice([jira.sync.Direction.UP.value, jira.sync.Direction.DOWN.value]))
+@click.argument('direction',
+                type=click.Choice([jira_module.sync.Direction.UP.value, jira_module.sync.Direction.DOWN.value]))
 def jira(direction):
     """
     Updates the branches in this release from JIRA or updates JIRA with the branches in this release.
 
-    remote: update JIRA
+    push: update JIRA
 
-    local: update gitrelease
+    pull: update gitrelease
     """
-    if direction == jira.sync.Direction.UP.value:
-        jira.sync.up()
-    elif direction == jira.sync.Direction.DOWN.value:
-        jira.sync.down()
+    if direction == jira_module.sync.Direction.UP.value:
+        jira_module.sync.up()
+    elif direction == jira_module.sync.Direction.DOWN.value:
+        jira_module.sync.down()
 
     return
 
@@ -126,7 +127,7 @@ def feature(search):
 
         if jira_send == "y":
             jira_key = helper.parse_jira_key(branch)
-            api.jira.add_fixveresion(jira_key, release_dict_read["version"])
+            api.jira_module.add_fixveresion(jira_key, release_dict_read["version"])
 
         # Add the branch to the release dictionary
         release_dict_write["branches"].append(branch)
@@ -276,8 +277,11 @@ def init():
 
 
 @cli.command()
-@click.option('-b', '--branches', 'branches', is_flag=True)
+@click.option('-b', '--branches', 'branches', is_flag=True, help="List branches in each release candidate")
 def checkout(branches):
+    """
+    Checkout a specific release candidate
+    """
     # Read in the config from gitconfig
     release_dict = mygit.config.read_config()
 
@@ -377,6 +381,9 @@ def checkout(branches):
 
 @cli.command()
 def roll():
+    """
+    Create a new release candidate by merging branches. Candidate starts from master
+    """
     releases_dict = mygit.config.read_config()
 
     subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
@@ -428,6 +435,9 @@ def roll():
 
 @cli.command()
 def next():
+    """
+    Create a new release candidate by merging branches. Candidate starts from current release candidate
+    """
     releases_dict = mygit.config.read_config()
 
     # sh.git.fetch("--all")
@@ -479,6 +489,9 @@ def next():
 
 @cli.command()
 def status():
+    """
+    Print out details about the current release candidate
+    """
     show_status()
     return
 
@@ -531,9 +544,14 @@ def find_conflicts():
 
 
 @cli.command()
-@click.option('-s', '--squash', 'squash', is_flag=True)
+@click.option('-s', '--squash', 'squash', is_flag=True, help="Use squash commit")
 @click.argument('environment', type=click.Choice(["dev", "stage", "prod"]))
 def deploy(environment, squash):
+    """
+    Merge the current release candidate into the chosen ENVIRONMENT branch
+
+    ENVIRONMENT the environment to merge into
+    """
     releases_dict = mygit.config.read_config()
 
     if environment == "dev":
@@ -586,6 +604,9 @@ def deploy(environment, squash):
 @cli.command()
 @click.argument('keepbranches', type=int)
 def prune(keepbranches):
+    """
+    Prune the number of release candidates in the current version down to KEEPBRANCHES.
+    """
     # Read in the config from gitconfig
     release_dict = mygit.config.read_config()
 
@@ -657,6 +678,9 @@ def prune(keepbranches):
 
 @cli.command()
 def append():
+    """
+    Merge branches to current release without incrementing releaese candidate
+    """
     releases_dict_read = mygit.config.read_config()
     releases_dict_write = copy.deepcopy(releases_dict_read)
 
@@ -677,7 +701,7 @@ def append():
                 subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
                                stdout=sys.stdout)
             except:
-                pass
+                sys.exit()
     except:
         sys.exit()
 
@@ -698,7 +722,7 @@ def append():
 @click.argument('service', type=click.Choice([configuration.Services.JIRA.value, configuration.Services.GITHUB.value]))
 def config(service):
     """
-    Set credentials for services integrations
+    Set credentials for service integrations
     """
     config_dict_read = configuration.load()
     config_dict_write = copy.deepcopy(config_dict_read)

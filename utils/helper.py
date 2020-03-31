@@ -19,34 +19,61 @@ def get_next_release_candidate():
     return "release-v{}-rc{}".format(releases_dict["version"], int(releases_dict["candidate"]) + 1)
 
 
-def release_sort_hash(version, candidate):
-    key = 0
-    for part in version.split("."):
-        key += int(part) * 100
+def most_digits(branch_list):
+    retval = 0
 
-    key += int(candidate)
+    for branch in branch_list:
+        branch.replace("remotes/origin/", "")
 
-    return key
+        regex = re.search("[\d+\.]+\d+", branch)
+        version = regex.group()
+
+        regex = re.search("\d+$", branch)
+        candidate = regex.group()
+
+        item = version.replace(".", "")
+
+        if len(item) > retval:
+            retval = len(item)
+
+    return retval
 
 
-def get_key(item_dict):
-    version = item_dict["version"]
-    candidate = item_dict["candidate"]
-
-    return release_sort_hash(version, candidate)
-
-
-def release_branch_comp(branch):
+def release_branch_comp(branch, length):
     branch.replace("remotes/origin/", "")
     key = 0
 
     regex = re.search("[\d+\.]+\d+", branch)
-    version = regex.group()
+    version = str(regex.group())
+
+    version = version.replace(".", "")
+    version = version.ljust(length, "0")
 
     regex = re.search("\d+$", branch)
-    candidate = regex.group()
+    candidate = str(regex.group())
 
-    return release_sort_hash(version, candidate)
+    retval = version + candidate
+
+    return int(retval)
+
+
+def sort_branches(branches_list):
+    max_digits = most_digits(branches_list)
+
+    sorted = False
+    while not sorted:
+        for i in range(0, len(branches_list) - 2):
+            current = release_branch_comp(branches_list[i], max_digits)
+            next = release_branch_comp(branches_list[i + 1], max_digits)
+            if current > next:
+                branches_list[i] = next
+                branches_list[i + 1] = current
+                sorted = False
+                continue
+
+            sorted = True
+
+    return branches_list
 
 
 def find_branch_by_query(query):
@@ -87,7 +114,3 @@ def get_origin_branch_name(branch):
         return branch
     else:
         return "origin/" + branch
-
-
-def get_branches_in_release(release_branch):
-    pass

@@ -38,3 +38,11 @@ def save(config_dict):
             print(err)
 
     return config_dict
+
+
+def hasService(service: Services) -> bool:
+    config_dict_read = load()
+    if service.value in config_dict_read:
+        return True
+    else:
+        return False

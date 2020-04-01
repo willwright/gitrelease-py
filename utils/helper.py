@@ -1,6 +1,8 @@
 import re
 import subprocess
+import sys
 
+import click
 import os
 import yaml
 
@@ -114,3 +116,101 @@ def get_origin_branch_name(branch):
         return branch
     else:
         return "origin/" + branch
+
+
+def find_conflicts():
+    print()
+    print("Looking for conflicts with merge.")
+    result = subprocess.run(['git', 'diff', '--name-only', '--diff-filter=U'], stdout=subprocess.PIPE)
+    conflicts = result.stdout.decode('utf-8')
+
+    if conflicts:
+        return True
+    else:
+        return False
+
+
+def find_feature(needle):
+    if needle:
+        feature_query = needle
+    else:
+        print("Find a branch by type, or search for it by name")
+        print("0: Search by name")
+        print("1: List all feature/ branches")
+        print("2: List all bugfix/ branches")
+        print("3: List all hotfix/ branches")
+
+        search_type = click.prompt("Search by", type=click.IntRange(0, 3), default=0)
+
+        feature_query = ""
+        if search_type == 0:
+            feature_query = click.prompt("Enter part of a Feature Branch name (we will search for it)",
+                                         type=str).strip()
+        elif search_type == 1:
+            feature_query = "feature/"
+        elif search_type == 2:
+            feature_query = "bugfix/"
+        elif search_type == 3:
+            feature_query = "hotfix/"
+        else:
+            return
+
+    branches = find_branch_by_query(feature_query)
+
+    if len(branches) <= 0:
+        click.secho("No branches found", fg='red')
+        return
+
+    for i in range(0, len(branches)):
+        print("{option}: {branch}".format(option=i, branch=branches[i]))
+
+    # If there is only one branch in the list to show, default the prompt to that branch
+    if len(branches) == 1:
+        default = 0
+    else:
+        default = "x"
+
+    choice = click.prompt("Select branch (x = cancel)", type=str, default=default)
+    try:
+        choice = int(choice)
+    except:
+        return
+
+    print("Selected: {branch}".format(branch=branches[choice]))
+
+    return branches[choice].replace("remotes/", "", 1)
+
+
+def merge_branches(branches):
+    # sh.git.fetch("--all")
+    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
+
+    for branch in branches:
+        branch = branch.strip()
+        print()
+        print("Merging: " + branch)
+        try:
+            # sh.git.merge("--no-ff", "--no-edit", branch, _err=sys.stderr, _out=sys.stdout)
+            subprocess.run(["git", "merge", "--no-ff", "--no-edit", branch], stdout=sys.stdout, stderr=sys.stderr)
+
+        except:
+            continue
+    return
+
+
+def show_status():
+    releases_dict = mygit.config.read_config()
+
+    click.echo("Master Branch: {}".format(releases_dict["masterbranch"] if "masterbranch" in releases_dict else "None"))
+    click.echo("Staging Branch: {}".format(releases_dict["stagebranch"] if "stagebranch" in releases_dict else "None"))
+    click.echo("Development Branch: {}".format(releases_dict["devbranch"] if "devbranch" in releases_dict else "None"))
+    click.echo("Checked out Branch: {}".format(get_current_checkout_branch()))
+    click.echo("----------------------------------------------")
+    click.echo("Current Version: {}".format(releases_dict["version"]))
+    click.echo("Current Candidate: {}".format(releases_dict["candidate"]))
+    click.echo()
+    click.echo("Branches in this release:")
+    for branch in releases_dict["branches"]:
+        click.echo(branch)
+
+    return

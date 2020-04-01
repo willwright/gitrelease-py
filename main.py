@@ -10,6 +10,7 @@ import jira as jira_module
 import mygit
 from utils import configuration
 from utils import helper
+from utils.helper import find_conflicts, find_feature, merge_branches, show_status
 
 
 @click.group()
@@ -29,6 +30,10 @@ def jira(direction):
 
     pull: update gitrelease
     """
+    if not configuration.hasService(configuration.Services.JIRA):
+        click.secho("JIRA service not configured; see gitrelease-py config")
+        return
+
     if direction == jira_module.sync.Direction.UP.value:
         jira_module.sync.up()
     elif direction == jira_module.sync.Direction.DOWN.value:
@@ -76,7 +81,8 @@ def rm(search):
 
     # Remove the FixVersion in JIRA
     if configuration.hasService(configuration.Services.JIRA):
-        jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
+        jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False),
+                                 default="y")
 
         if jira_send == "y":
             jira_send = True
@@ -123,12 +129,13 @@ def feature(search):
             print("{}: is already included in this release. Skipping...".format(branch))
             return
 
-        jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False),
-                                 default="y")
+        if configuration.hasService(configuration.Services.JIRA):
+            jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False),
+                                     default="y")
 
-        if jira_send == "y":
-            jira_key = helper.parse_jira_key(branch)
-            api.jira_module.add_fixveresion(jira_key, release_dict_read["version"])
+            if jira_send == "y":
+                jira_key = helper.parse_jira_key(branch)
+                api.jira_module.add_fixveresion(jira_key, release_dict_read["version"])
 
         # Add the branch to the release dictionary
         release_dict_write["branches"].append(branch)
@@ -146,57 +153,6 @@ def feature(search):
     show_status()
 
     return
-
-
-def find_feature(needle):
-    if needle:
-        feature_query = needle
-    else:
-        print("Find a branch by type, or search for it by name")
-        print("0: Search by name")
-        print("1: List all feature/ branches")
-        print("2: List all bugfix/ branches")
-        print("3: List all hotfix/ branches")
-
-        search_type = click.prompt("Search by", type=click.IntRange(0, 3), default=0)
-
-        feature_query = ""
-        if search_type == 0:
-            feature_query = click.prompt("Enter part of a Feature Branch name (we will search for it)",
-                                         type=str).strip()
-        elif search_type == 1:
-            feature_query = "feature/"
-        elif search_type == 2:
-            feature_query = "bugfix/"
-        elif search_type == 3:
-            feature_query = "hotfix/"
-        else:
-            return
-
-    branches = helper.find_branch_by_query(feature_query)
-
-    if len(branches) <= 0:
-        click.secho("No branches found", fg='red')
-        return
-
-    for i in range(0, len(branches)):
-        print("{option}: {branch}".format(option=i, branch=branches[i]))
-
-    # If there is only one branch in the list to show, default the prompt to that branch
-    if len(branches) == 1:
-        default = 0
-    else:
-        default = "x"
-
-    choice = click.prompt("Select branch (x = cancel)", type=str, default=default)
-    try:
-        choice = int(choice)
-    except:
-        return
-
-    print("Selected: {branch}".format(branch=branches[choice]))
-
-    return branches[choice].replace("remotes/", "", 1)
 
 
 @cli.command()
@@ -414,7 +370,7 @@ def roll():
             subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
                            stdout=sys.stdout)
     except:
-        sys.exit()
+        return
 
     # @TODO: There is some warning about piping from subprocess.run, read the docs and refactor
     result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
@@ -454,7 +410,7 @@ def next():
     except subprocess.CalledProcessError as err:
         click.secho("Error creating the next release branch. This usually happens when there is a local release "
                     "candidate that has not been pushed to origin", fg='red')
-        sys.exit()
+        return
 
     releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
     mygit.config.write_config(releases_dict)
@@ -472,7 +428,7 @@ def next():
             subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
                            stdout=sys.stdout)
         except:
-            sys.exit()
+            return
 
     merge_branches(releases_dict["branches"])
 
@@ -495,53 +451,6 @@ def status():
     """
     show_status()
     return
-
-
-def show_status():
-    releases_dict = mygit.config.read_config()
-
-    click.echo("Master Branch: {}".format(releases_dict["masterbranch"] if "masterbranch" in releases_dict else "None"))
-    click.echo("Staging Branch: {}".format(releases_dict["stagebranch"] if "stagebranch" in releases_dict else "None"))
-    click.echo("Development Branch: {}".format(releases_dict["devbranch"] if "devbranch" in releases_dict else "None"))
-    click.echo("Checked out Branch: {}".format(helper.get_current_checkout_branch()))
-    click.echo("----------------------------------------------")
-    click.echo("Current Version: {}".format(releases_dict["version"]))
-    click.echo("Current Candidate: {}".format(releases_dict["candidate"]))
-    click.echo()
-    click.echo("Branches in this release:")
-    for branch in releases_dict["branches"]:
-        click.echo(branch)
-
-    return
-
-
-def merge_branches(branches):
-    # sh.git.fetch("--all")
-    subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
-
-    for branch in branches:
-        branch = branch.strip()
-        print()
-        print("Merging: " + branch)
-        try:
-            # sh.git.merge("--no-ff", "--no-edit", branch, _err=sys.stderr, _out=sys.stdout)
-            subprocess.run(["git", "merge", "--no-ff", "--no-edit", branch], stdout=sys.stdout, stderr=sys.stderr)
-
-        except:
-            continue
-    return
-
-
-def find_conflicts():
-    print()
-    print("Looking for conflicts with merge.")
-    result = subprocess.run(['git', 'diff', '--name-only', '--diff-filter=U'], stdout=subprocess.PIPE)
-    conflicts = result.stdout.decode('utf-8')
-
-    if conflicts:
-        return True
-    else:
-        return False
 
 
 @cli.command()
@@ -702,9 +611,9 @@ def append():
                 subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
                                stdout=sys.stdout)
             except:
-                sys.exit()
+                return
     except:
-        sys.exit()
+        return
 
     merge_branches(releases_dict_read["branches"])
 
@@ -729,7 +638,8 @@ def config(service):
     config_dict_write = copy.deepcopy(config_dict_read)
 
     if service == configuration.Services.JIRA.value:
-        if configuration.Services.JIRA.value in config_dict_read and "username" in config_dict_read[configuration.Services.JIRA.value]:
+        if configuration.Services.JIRA.value in config_dict_read and "username" in config_dict_read[
+            configuration.Services.JIRA.value]:
             default = config_dict_read[configuration.Services.JIRA.value]["username"]
         else:
             default = None
@@ -740,7 +650,8 @@ def config(service):
 
         config_dict_write[configuration.Services.JIRA.value]["username"] = input.strip()
 
-        if configuration.Services.JIRA.value in config_dict_read and "password" in config_dict_read[configuration.Services.JIRA.value]:
+        if configuration.Services.JIRA.value in config_dict_read and "password" in config_dict_read[
+            configuration.Services.JIRA.value]:
             default = "*" * len(config_dict_read[configuration.Services.JIRA.value]["password"])
         else:
             default = None
@@ -749,8 +660,10 @@ def config(service):
         if not input == default:
             config_dict_write[configuration.Services.JIRA.value]["password"] = input.strip()
     elif service == configuration.Services.GITHUB.value:
-        if configuration.Services.GITHUB.value in config_dict_read and "bearer" in config_dict_read[configuration.Services.GITHUB.value]:
-            default = "Bearer " + "*" * (len(config_dict_read[configuration.Services.GITHUB.value]["bearer"]) - len("Bearer "))
+        if configuration.Services.GITHUB.value in config_dict_read and "bearer" in config_dict_read[
+            configuration.Services.GITHUB.value]:
+            default = "Bearer " + "*" * (
+                        len(config_dict_read[configuration.Services.GITHUB.value]["bearer"]) - len("Bearer "))
         else:
             default = None
 

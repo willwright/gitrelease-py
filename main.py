@@ -75,16 +75,17 @@ def rm(search):
         return
 
     # Remove the FixVersion in JIRA
-    jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
+    if configuration.hasService(configuration.Services.JIRA):
+        jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False), default="y")
 
-    if jira_send == "y":
-        jira_send = True
-    else:
-        jira_send = False
+        if jira_send == "y":
+            jira_send = True
+        else:
+            jira_send = False
 
-    if jira_send:
-        jira_key = helper.parse_jira_key(release_dict_read["branches"][choice])
-        api.jira.delete_fixversion(jira_key, release_dict_read["version"])
+        if jira_send:
+            jira_key = helper.parse_jira_key(release_dict_read["branches"][choice])
+            api.jira.delete_fixversion(jira_key, release_dict_read["version"])
 
     # Remove the branch from the Dictionary
     del release_dict_write["branches"][choice]
@@ -728,25 +729,28 @@ def config(service):
     config_dict_write = copy.deepcopy(config_dict_read)
 
     if service == configuration.Services.JIRA.value:
-        if "jira" in config_dict_read and "username" in config_dict_read["jira"]:
-            default = config_dict_read["jira"]["username"]
+        if configuration.Services.JIRA.value in config_dict_read and "username" in config_dict_read[configuration.Services.JIRA.value]:
+            default = config_dict_read[configuration.Services.JIRA.value]["username"]
         else:
             default = None
         input = click.prompt("JIRA username", type=str, default=default)
 
-        config_dict_write["jira"]["username"] = input.strip()
+        if configuration.Services.JIRA.value not in config_dict_write:
+            config_dict_write[configuration.Services.JIRA.value] = {}
 
-        if "jira" in config_dict_read and "password" in config_dict_read["jira"]:
-            default = "*" * len(config_dict_read["jira"]["password"])
+        config_dict_write[configuration.Services.JIRA.value]["username"] = input.strip()
+
+        if configuration.Services.JIRA.value in config_dict_read and "password" in config_dict_read[configuration.Services.JIRA.value]:
+            default = "*" * len(config_dict_read[configuration.Services.JIRA.value]["password"])
         else:
             default = None
         input = click.prompt("JIRA password", type=str, default=default)
 
         if not input == default:
-            config_dict_write["jira"]["password"] = input.strip()
+            config_dict_write[configuration.Services.JIRA.value]["password"] = input.strip()
     elif service == configuration.Services.GITHUB.value:
-        if "github" in config_dict_read and "bearer" in config_dict_read["github"]:
-            default = "Bearer " + "*" * (len(config_dict_read["github"]["bearer"]) - len("Bearer "))
+        if configuration.Services.GITHUB.value in config_dict_read and "bearer" in config_dict_read[configuration.Services.GITHUB.value]:
+            default = "Bearer " + "*" * (len(config_dict_read[configuration.Services.GITHUB.value]["bearer"]) - len("Bearer "))
         else:
             default = None
 
@@ -756,7 +760,10 @@ def config(service):
             inputParts = input.split(" ")
             input = "Bearer " + inputParts[len(inputParts) - 1]
 
-            config_dict_write["github"]["bearer"] = input
+            if configuration.Services.JIRA.value not in config_dict_write:
+                config_dict_write[configuration.Services.GITHUB.value] = {}
+
+            config_dict_write[configuration.Services.GITHUB.value]["bearer"] = input
 
     configuration.save(config_dict_write)
 

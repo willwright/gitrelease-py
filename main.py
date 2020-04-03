@@ -213,7 +213,7 @@ def init():
     release_candidate = click.prompt(
         "Enter Release Candidate Version (e.g. 1,2,3... or blank for 0, first roll will be 1)", type=int,
         default=default)
-    release_dict_write["candidate"] = int(release_candidate.strip())
+    release_dict_write["candidate"] = release_candidate
 
     choice = click.prompt("Clear branches (or inherit from current config)", type=click.Choice(["y", "n"]), default="n")
 

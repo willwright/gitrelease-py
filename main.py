@@ -1,9 +1,9 @@
+import copy
 import re
 import subprocess
 import sys
 
 import click
-import copy
 
 import api
 import jira as jira_module
@@ -135,7 +135,7 @@ def feature(search):
 
             if jira_send == "y":
                 jira_key = helper.parse_jira_key(branch)
-                api.jira_module.add_fixveresion(jira_key, release_dict_read["version"])
+                api.jira.add_fixveresion(jira_key, release_dict_read["version"])
 
         # Add the branch to the release dictionary
         release_dict_write["branches"].append(branch)
@@ -183,13 +183,13 @@ def init():
     else:
         projectslug = click.prompt("Choose a projectslug", type=str)
 
-    if projectslug:
-        release_dict_write["projectslug"] = projectslug.strip()
-
     # TODO: Check that the slug and version don't already exist; if they do prompt for confirmation
-    # if slugExists(projectslug):
-    #    print("That slug already exists")
-    #    # TODO: Implement a confirmation here
+    if api.awsgateway.slugExists(projectslug):
+        click.secho("That slug already exists; using this slug may result in releases being overwritten in the DB")
+        if click.confirm("Are you sure you want to continue with this slug") and projectslug:
+            release_dict_write["projectslug"] = projectslug.strip()
+    else:
+        release_dict_write["projectslug"] = projectslug.strip()
 
     if "version" in release_dict_read and release_dict_read["version"]:
         default = release_dict_read["version"]
@@ -663,7 +663,7 @@ def config(service):
         if configuration.Services.GITHUB.value in config_dict_read and "bearer" in config_dict_read[
             configuration.Services.GITHUB.value]:
             default = "Bearer " + "*" * (
-                        len(config_dict_read[configuration.Services.GITHUB.value]["bearer"]) - len("Bearer "))
+                    len(config_dict_read[configuration.Services.GITHUB.value]["bearer"]) - len("Bearer "))
         else:
             default = None
 

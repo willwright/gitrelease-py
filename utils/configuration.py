@@ -1,6 +1,7 @@
 import os
-import yaml
 from enum import Enum
+
+import yaml
 
 CONFIG_DIR = ".gitrelease"
 CONFIG_FILE = "config.yaml"
@@ -40,7 +41,7 @@ def save(config_dict):
     return config_dict
 
 
-def hasService(service: Services) -> bool:
+def hasService(service) -> bool:
     config_dict_read = load()
     if service.value in config_dict_read:
         return True

@@ -1,4 +1,5 @@
 import json
+
 import requests
 
 
@@ -69,7 +70,9 @@ def slugExists(projectslug):
         # Replace this with raise error
         print("ApiCall Error")
 
-    if "projectslug" in response.json()["item"]:
-        return True
-    else:
-        return False
+    if "Items" in response.json() and len(response.json()["Items"]) > 0:
+        for item in response.json()["Items"]:
+            if "projectslug" in item and item["projectslug"] == projectslug:
+                return True
+
+    return False

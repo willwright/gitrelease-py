@@ -3,8 +3,6 @@ import subprocess
 import sys
 
 import click
-import os
-import yaml
 
 import mygit
 
@@ -201,3 +199,33 @@ def show_status():
         click.echo(branch)
 
     return
+
+
+def get_version_part(release) -> str:
+    '''
+    Extracts the "version" from a release candidate branch name
+
+    Given: release-v4.1.0-rc12
+    Return: 4.1.0
+
+    :param release:
+    :return:
+    '''
+    regex = re.search("[\d+\.]+\d+", release)
+    version = regex.group()
+    return version
+
+
+def get_candidate_part(release) -> str:
+    '''
+    Extracts the "candidate" from a release candidate branch name
+
+    Given: release-v4.1.0-rc12
+    Return: 12
+
+    :param release:
+    :return:
+    '''
+    regex = re.search("\d+$", release)
+    candidate = regex.group()
+    return candidate

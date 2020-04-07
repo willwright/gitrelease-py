@@ -279,8 +279,17 @@ def checkout(branches):
         # If the branches flag was given
         # print out the branches contained within the given release-vX.XX.X-rcXX
         if branches:
-            for branch in api.git.get_branches_in_release(branches_list[key]):
-                click.secho("     --{}".format(branch), fg="blue")
+            if api.awsgateway.enabled():
+                version = helper.get_version_part(branches_list[key])
+                candidate = helper.get_candidate_part(branches_list[key])
+
+                releaseDynamo = api.awsgateway.read_candidate(release_dict['projectslug'], version, candidate)
+                if "Item" in releaseDynamo and "branches" in releaseDynamo["Item"]:
+                    for branch in releaseDynamo["Item"]["branches"]:
+                        click.secho("     --{}".format(branch), fg="blue")
+            else:
+                for branch in api.git.get_branches_in_release(branches_list[key]):
+                    click.secho("     --{}".format(branch), fg="blue")
 
     # Prompt the user to select a release-rc
     choice = click.prompt("Choose release (x = cancel)", type=str, default=str(len(branches_list) - 1))
@@ -302,11 +311,8 @@ def checkout(branches):
         click.secho("Checkout Failed; see stderr output above", fg='red')
         return
 
-    regex = re.search("[\d+\.]+\d+", choice_branch)
-    version = regex.group()
-
-    regex = re.search("\d+$", choice_branch)
-    candidate = regex.group()
+    version = helper.get_version_part(choice_branch)
+    candidate = helper.get_candidate_part(choice_branch)
 
     release_dict["version"] = version
     release_dict["candidate"] = candidate

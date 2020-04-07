@@ -54,6 +54,27 @@ def read_candidate(release_dict):
     pass
 
 
+def read_candidate(projectslug, version, candidate):
+    config_dict = utils.configuration.load()
+
+    response = requests.get(
+        "https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}/version/{1}/candidate/{2}".format(
+            projectslug, version, candidate),
+        auth=(config_dict["apigateway"]["username"], config_dict["apigateway"]["password"])
+    )
+
+    if response.status_code != 200:
+        # Replace this with raise error
+        click.secho("ApiCall Error", fg='red')
+
+    if response.json():
+        return response.json()
+    else:
+        return {}
+
+    pass
+
+
 def writerelease(release_dict):
     """
     Writes a Release record to the API

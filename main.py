@@ -364,7 +364,7 @@ def roll():
         subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict_write["version"])],
                        stderr=sys.stderr,
                        stdout=sys.stdout)
-        subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
+        subprocess.run(["git", "commit", "-m", "Release Branch Definition"], stderr=sys.stderr,
                        stdout=sys.stdout)
 
     # @TODO: There is some warning about piping from subprocess.run, read the docs and refactor
@@ -372,6 +372,16 @@ def roll():
     branches = result.stdout.decode('utf-8').splitlines()
 
     merge_branches(branches)
+
+    mygit.version.write_version(releases_dict_write)
+    try:
+        subprocess.run(["git", "add", "version"],
+                       stderr=sys.stderr,
+                       stdout=sys.stdout)
+        subprocess.run(["git", "commit", "-m", "Release Branch Definition"], stderr=sys.stderr,
+                       stdout=sys.stdout)
+    except:
+        return
 
     has_conflicts = find_conflicts()
     if has_conflicts:
@@ -424,6 +434,16 @@ def next():
             return
 
     merge_branches(releases_dict_write["branches"])
+
+    mygit.version.write_version(releases_dict_write)
+    try:
+        subprocess.run(["git", "add", "version"],
+                       stderr=sys.stderr,
+                       stdout=sys.stdout)
+        subprocess.run(["git", "commit", "-m", "Release Branch Definition"], stderr=sys.stderr,
+                       stdout=sys.stdout)
+    except:
+        return
 
     has_conflicts = find_conflicts()
     if has_conflicts:

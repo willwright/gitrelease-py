@@ -10,6 +10,7 @@ CONFIG_FILE = "config.yaml"
 class Services(Enum):
     JIRA = "jira"
     GITHUB = "github"
+    APIGATEWAY = "apigateway"
 
 
 def load():

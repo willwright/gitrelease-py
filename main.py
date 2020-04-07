@@ -102,10 +102,6 @@ def rm(search):
     click.secho("Removed: {}".format(release_dict_read["branches"][choice]), fg='green')
     print()
 
-    # @TODO: change to conditional based on configuration
-    # Write the dictionary to DynamoDB
-    api.awsgateway.writerelease(release_dict_write)
-
     show_status()
 
     return
@@ -143,10 +139,6 @@ def feature(search):
         # Write the dictionary to git-config
         mygit.config.write_config(release_dict_write)
 
-        # @TODO: Add API configuration conditional
-        # Write the dictionary to DynamoDB
-        api.awsgateway.writerelease(release_dict_write)
-
         click.secho("Added: {}".format(branch), fg='green')
 
     print()
@@ -178,18 +170,22 @@ def init():
         if dev_branch_choice:
             release_dict_write["devbranch"] = dev_branch_choice.strip()
 
-    if "projectslug" in release_dict_read and release_dict_read["projectslug"]:
-        projectslug = click.prompt("Choose a projectslug", default=release_dict_read["projectslug"], type=str)
-    else:
-        projectslug = click.prompt("Choose a projectslug", type=str)
+    if api.awsgateway.enabled():
+        if "projectslug" in release_dict_read and release_dict_read["projectslug"]:
+            projectslug = click.prompt("Choose a projectslug", default=release_dict_read["projectslug"], type=str)
+        else:
+            projectslug = click.prompt("Choose a projectslug", type=str)
 
-    # TODO: Check that the slug and version don't already exist; if they do prompt for confirmation
-    if api.awsgateway.slugExists(projectslug):
-        click.secho("That slug already exists; using this slug may result in releases being overwritten in the DB")
-        if click.confirm("Are you sure you want to continue with this slug") and projectslug:
+        if api.awsgateway.slugExists(projectslug):
+            click.secho("That slug already exists; using this slug may result in releases being overwritten in the DB")
+            if click.confirm("Are you sure you want to continue with this slug") and projectslug:
+                release_dict_write["projectslug"] = projectslug.strip()
+            else:
+                if "projectslug" in release_dict_write:
+                    click.secho("Slug cleared", fg='green')
+                    release_dict_write.pop("projectslug")
+        else:
             release_dict_write["projectslug"] = projectslug.strip()
-    else:
-        release_dict_write["projectslug"] = projectslug.strip()
 
     if "version" in release_dict_read and release_dict_read["version"]:
         default = release_dict_read["version"]
@@ -226,7 +222,8 @@ def init():
     mygit.config.write_config(release_dict_write)
 
     # Write release to API
-    api.awsgateway.writerelease(release_dict_write)
+    if api.awsgateway.enabled():
+        api.awsgateway.writerelease(release_dict_write)
 
     show_status()
 
@@ -305,11 +302,20 @@ def checkout(branches):
         click.secho("Checkout Failed; see stderr output above", fg='red')
         return
 
+    regex = re.search("[\d+\.]+\d+", choice_branch)
+    version = regex.group()
+
+    regex = re.search("\d+$", choice_branch)
+    candidate = regex.group()
+
+    release_dict["version"] = version
+    release_dict["candidate"] = candidate
+
     # There are two methods for updating the gitconfig
     # Read from the API
     # or
     # Read from the releases/release-vX.XX.X file in the repo
-    if helper.use_api_share():
+    if api.awsgateway.enabled():
         # Update release_dict from the API
         raw_candidate = api.awsgateway.read_candidate(release_dict)
         if "Item" in raw_candidate:
@@ -317,14 +323,6 @@ def checkout(branches):
             release_dict.pop("projectslug#version#candidate")
     else:
         # Update release_dict from the repo
-        regex = re.search("[\d+\.]+\d+", choice_branch)
-        version = regex.group()
-
-        regex = re.search("\d+$", choice_branch)
-        candidate = regex.group()
-
-        release_dict["version"] = version
-        release_dict["candidate"] = candidate
         release_dict["branches"] = mygit.releases.read_git_release(release_dict["version"])
 
     # Write the gitconfig
@@ -341,7 +339,8 @@ def roll():
     """
     Create a new release candidate by merging branches. Candidate starts from master
     """
-    releases_dict = mygit.config.read_config()
+    releases_dict_read = mygit.config.read_config()
+    releases_dict_write = copy.deepcopy(releases_dict_read)
 
     subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
 
@@ -349,28 +348,24 @@ def roll():
 
     # Change this so that "master" is configurable
     try:
-        try:
-            # sh.git.checkout("-b", helper.get_next_release_candidate(), "origin/master", "--no-track", _err=sys.stderr, _out=sys.stdout)
-            subprocess.run(
-                ["git", "checkout", "-b", helper.get_next_release_candidate(), "origin/master", "--no-track"],
-                stderr=sys.stderr, stdout=sys.stdout)
-        except:
-            return
-
-        releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
-        mygit.config.write_config(releases_dict)
-
-        # TODO: Write config to API or Local
-        if helper.use_api_share():
-            pass
-        else:
-            mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
-            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr,
-                           stdout=sys.stdout)
-            subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
-                           stdout=sys.stdout)
+        subprocess.run(
+            ["git", "checkout", "-b", helper.get_next_release_candidate(), "origin/master", "--no-track"],
+            stderr=sys.stderr, stdout=sys.stdout)
     except:
         return
+
+    releases_dict_write["candidate"] = int(releases_dict_read["candidate"]) + 1
+    mygit.config.write_config(releases_dict_write)
+
+    if api.awsgateway.enabled():
+        api.awsgateway.writerelease(releases_dict_write)
+    else:
+        mygit.releases.write_git_release(releases_dict_write["version"], releases_dict_write["branches"])
+        subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict_write["version"])],
+                       stderr=sys.stderr,
+                       stdout=sys.stdout)
+        subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
+                       stdout=sys.stdout)
 
     # @TODO: There is some warning about piping from subprocess.run, read the docs and refactor
     result = subprocess.run(['git', 'config', '--get-all', 'releases.branches'], stdout=subprocess.PIPE)
@@ -383,7 +378,6 @@ def roll():
         print("Not pushing to origin")
     else:
         print("Pushing to origin")
-        # sh.git.push("-u", "origin", helper.get_current_release_candidate(), _out=sys.stdout)
         subprocess.run(["git", "push", "-u", "origin", helper.get_current_release_candidate()], stderr=sys.stderr,
                        stdout=sys.stdout)
 
@@ -395,7 +389,8 @@ def next():
     """
     Create a new release candidate by merging branches. Candidate starts from current release candidate
     """
-    releases_dict = mygit.config.read_config()
+    releases_dict_read = mygit.config.read_config()
+    releases_dict_write = copy.deepcopy(releases_dict_read)
 
     # sh.git.fetch("--all")
     subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
@@ -412,25 +407,23 @@ def next():
                     "candidate that has not been pushed to origin", fg='red')
         return
 
-    releases_dict["candidate"] = int(releases_dict["candidate"]) + 1
-    mygit.config.write_config(releases_dict)
+    releases_dict_write["candidate"] = int(releases_dict_read["candidate"]) + 1
+    mygit.config.write_config(releases_dict_write)
 
-    # TODO: Write config to API or Local
-    if helper.use_api_share():
-        pass
+    if api.awsgateway.enabled():
+        api.awsgateway.writerelease(releases_dict_write)
     else:
-        mygit.releases.write_git_release(releases_dict["version"], releases_dict["branches"])
-        # sh.git.add("releases/release-v{}".format(releases_dict["version"]))
-        subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict["version"])], stderr=sys.stderr,
-                       stdout=sys.stdout)
+        mygit.releases.write_git_release(releases_dict_write["version"], releases_dict_write["branches"])
         try:
-            # sh.git.commit("-m", "Appending Release Branch Definition file")
+            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict_write["version"])],
+                           stderr=sys.stderr,
+                           stdout=sys.stdout)
             subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
                            stdout=sys.stdout)
         except:
             return
 
-    merge_branches(releases_dict["branches"])
+    merge_branches(releases_dict_write["branches"])
 
     has_conflicts = find_conflicts()
     if has_conflicts:
@@ -599,21 +592,21 @@ def append():
     try:
         subprocess.run(["git", "pull"], stderr=sys.stderr)
 
-        # TODO: Write config to API or Local
-        if helper.use_api_share():
-            pass
-        else:
-            mygit.releases.write_git_release(releases_dict_read["version"], releases_dict_read["branches"])
-            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict_read["version"])],
-                           stderr=sys.stderr,
-                           stdout=sys.stdout)
-            try:
-                subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
-                               stdout=sys.stdout)
-            except:
-                return
     except:
         return
+
+    if api.awsgateway.enabled():
+        api.awsgateway.writerelease(releases_dict_write)
+    else:
+        mygit.releases.write_git_release(releases_dict_write["version"], releases_dict_write["branches"])
+        try:
+            subprocess.run(["git", "add", "releases/release-v{}".format(releases_dict_write["version"])],
+                           stderr=sys.stderr,
+                           stdout=sys.stdout)
+            subprocess.run(["git", "commit", "-m", "Appending Release Branch Definition file"], stderr=sys.stderr,
+                           stdout=sys.stdout)
+        except:
+            return
 
     merge_branches(releases_dict_read["branches"])
 
@@ -629,7 +622,8 @@ def append():
 
 
 @cli.command()
-@click.argument('service', type=click.Choice([configuration.Services.JIRA.value, configuration.Services.GITHUB.value]))
+@click.argument('service', type=click.Choice(
+    [configuration.Services.JIRA.value, configuration.Services.GITHUB.value, configuration.Services.APIGATEWAY.value]))
 def config(service):
     """
     Set credentials for service integrations
@@ -638,6 +632,11 @@ def config(service):
     config_dict_write = copy.deepcopy(config_dict_read)
 
     if service == configuration.Services.JIRA.value:
+        # If the section doesn't exist yet; default it to an empty dictionary
+        if configuration.Services.JIRA.value not in config_dict_write:
+            config_dict_write[configuration.Services.JIRA.value] = {}
+
+        # Set: username
         if configuration.Services.JIRA.value in config_dict_read and "username" in config_dict_read[
             configuration.Services.JIRA.value]:
             default = config_dict_read[configuration.Services.JIRA.value]["username"]
@@ -645,21 +644,24 @@ def config(service):
             default = None
         input = click.prompt("JIRA username", type=str, default=default)
 
-        if configuration.Services.JIRA.value not in config_dict_write:
-            config_dict_write[configuration.Services.JIRA.value] = {}
-
         config_dict_write[configuration.Services.JIRA.value]["username"] = input.strip()
 
+        # Set: password
         if configuration.Services.JIRA.value in config_dict_read and "password" in config_dict_read[
             configuration.Services.JIRA.value]:
             default = "*" * len(config_dict_read[configuration.Services.JIRA.value]["password"])
         else:
             default = None
-        input = click.prompt("JIRA password", type=str, default=default)
+        input = click.prompt("JIRA password", type=str, default=default, hide_input=True)
 
         if not input == default:
             config_dict_write[configuration.Services.JIRA.value]["password"] = input.strip()
     elif service == configuration.Services.GITHUB.value:
+        # If the section doesn't exist yet; default it to an empty dictionary
+        if configuration.Services.GITHUB.value not in config_dict_write:
+            config_dict_write[configuration.Services.GITHUB.value] = {}
+
+        # Set: bearer
         if configuration.Services.GITHUB.value in config_dict_read and "bearer" in config_dict_read[
             configuration.Services.GITHUB.value]:
             default = "Bearer " + "*" * (
@@ -677,6 +679,41 @@ def config(service):
                 config_dict_write[configuration.Services.GITHUB.value] = {}
 
             config_dict_write[configuration.Services.GITHUB.value]["bearer"] = input
+    elif service == configuration.Services.APIGATEWAY.value:
+        # If the section doesn't exist yet; default it to an empty dictionary
+        if configuration.Services.APIGATEWAY.value not in config_dict_write:
+            config_dict_write[configuration.Services.APIGATEWAY.value] = {}
+
+        # Set: enabled
+        if configuration.Services.APIGATEWAY.value in config_dict_read and "enabled" in config_dict_read[
+            configuration.Services.APIGATEWAY.value]:
+            default = config_dict_read[configuration.Services.APIGATEWAY.value]["enabled"]
+        else:
+            default = None
+
+        input = click.prompt("ApiGateway enabled", default=default, type=click.Choice(["y", "n"]))
+        config_dict_write[configuration.Services.APIGATEWAY.value]["enabled"] = input.strip()
+
+        # Set: username
+        if configuration.Services.APIGATEWAY.value in config_dict_read and "username" in config_dict_read[
+            configuration.Services.APIGATEWAY.value]:
+            default = config_dict_read[configuration.Services.APIGATEWAY.value]["username"]
+        else:
+            default = None
+
+        input = click.prompt("ApiGateway username", type=str, default=default)
+        config_dict_write[configuration.Services.APIGATEWAY.value]["username"] = input.strip()
+
+        # Set: password
+        if configuration.Services.APIGATEWAY.value in config_dict_read and "password" in config_dict_read[
+            configuration.Services.APIGATEWAY.value]:
+            default = "*" * len(config_dict_read[configuration.Services.APIGATEWAY.value]["password"])
+        else:
+            default = None
+        input = click.prompt("ApiGateway password", type=str, default=default, hide_input=True)
+
+        if not input == default:
+            config_dict_write[configuration.Services.APIGATEWAY.value]["password"] = input.strip()
 
     configuration.save(config_dict_write)
 

@@ -86,19 +86,6 @@ def find_branch_by_query(query):
     return branches
 
 
-def use_api_share():
-    if not os.path.exists("gitrelease.yaml"):
-        return False
-
-    with open("gitrelease.yaml", "r") as stream:
-        try:
-            config_dict = yaml.safe_load(stream)
-        except yaml.YAMLError as err:
-            print(err)
-
-    return bool(config_dict["useApiShare"]) or False
-
-
 def get_current_checkout_branch():
     result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stdout=subprocess.PIPE)
 

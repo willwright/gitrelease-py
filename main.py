@@ -85,11 +85,6 @@ def rm(search):
                                  default="y")
 
         if jira_send == "y":
-            jira_send = True
-        else:
-            jira_send = False
-
-        if jira_send:
             jira_key = helper.parse_jira_key(release_dict_read["branches"][choice])
             api.jira.delete_fixversion(jira_key, release_dict_read["version"])
 
@@ -521,7 +516,7 @@ def deploy(environment, squash):
                             "origin/release-v{}-rc{}".format(releases_dict["version"], releases_dict["candidate"])],
                            stderr=sys.stderr, stdout=sys.stdout)
     except:
-        pass
+        return
 
     subprocess.run(["git", "push", "origin", releases_dict[branch_code], "-f"], stderr=sys.stderr,
                    stdout=sys.stdout)

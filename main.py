@@ -165,7 +165,7 @@ def init():
         if dev_branch_choice:
             release_dict_write["devbranch"] = dev_branch_choice.strip()
 
-    if api.awsgateway.enabled():
+    if configuration.hasService(configuration.Services.APIGATEWAY) and api.awsgateway.enabled():
         if "projectslug" in release_dict_read and release_dict_read["projectslug"]:
             projectslug = click.prompt("Choose a projectslug", default=release_dict_read["projectslug"], type=str)
         else:
@@ -217,7 +217,7 @@ def init():
     mygit.config.write_config(release_dict_write)
 
     # Write release to API
-    if api.awsgateway.enabled():
+    if configuration.hasService(configuration.Services.APIGATEWAY) and api.awsgateway.enabled():
         api.awsgateway.writerelease(release_dict_write)
 
     show_status()
@@ -228,6 +228,12 @@ def init():
 @cli.command()
 @click.option('-b', '--branches', 'branches', is_flag=True, help="List branches in each release candidate")
 def checkout(branches):
+    if branches:
+        if (not configuration.hasService(
+                configuration.Services.APIGATEWAY) or not api.awsgateway.enabled()) and not configuration.hasService(
+            configuration.Services.GITHUB):
+            click.secho("No service configured for detailed branch listing; SEE gitreleaes-py config", fg='red')
+
     """
     Checkout a specific release candidate
     """
@@ -274,7 +280,7 @@ def checkout(branches):
         # If the branches flag was given
         # print out the branches contained within the given release-vX.XX.X-rcXX
         if branches:
-            if api.awsgateway.enabled():
+            if configuration.hasService(configuration.Services.APIGATEWAY) and api.awsgateway.enabled():
                 version = helper.get_version_part(branches_list[key])
                 candidate = helper.get_candidate_part(branches_list[key])
 
@@ -282,7 +288,7 @@ def checkout(branches):
                 if "Item" in releaseDynamo and "branches" in releaseDynamo["Item"]:
                     for branch in releaseDynamo["Item"]["branches"]:
                         click.secho("     --{}".format(branch), fg="blue")
-            else:
+            elif configuration.hasService(configuration.Services.GITHUB):
                 for branch in api.git.get_branches_in_release(branches_list[key]):
                     click.secho("     --{}".format(branch), fg="blue")
 
@@ -316,7 +322,7 @@ def checkout(branches):
     # Read from the API
     # or
     # Read from the releases/release-vX.XX.X file in the repo
-    if api.awsgateway.enabled():
+    if configuration.hasService(configuration.Services.APIGATEWAY) and api.awsgateway.enabled():
         # Update release_dict from the API
         raw_candidate = api.awsgateway.read_candidate(release_dict)
         if "Item" in raw_candidate:
@@ -358,7 +364,7 @@ def roll():
     releases_dict_write["candidate"] = int(releases_dict_read["candidate"]) + 1
     mygit.config.write_config(releases_dict_write)
 
-    if api.awsgateway.enabled():
+    if configuration.hasService(configuration.Services.APIGATEWAY) and api.awsgateway.enabled():
         api.awsgateway.writerelease(releases_dict_write)
     else:
         mygit.releases.write_git_release(releases_dict_write["version"], releases_dict_write["branches"])
@@ -421,7 +427,7 @@ def next():
     releases_dict_write["candidate"] = int(releases_dict_read["candidate"]) + 1
     mygit.config.write_config(releases_dict_write)
 
-    if api.awsgateway.enabled():
+    if configuration.hasService(configuration.Services.APIGATEWAY) and api.awsgateway.enabled():
         api.awsgateway.writerelease(releases_dict_write)
     else:
         mygit.releases.write_git_release(releases_dict_write["version"], releases_dict_write["branches"])
@@ -616,7 +622,7 @@ def append():
     except:
         return
 
-    if api.awsgateway.enabled():
+    if configuration.hasService(configuration.Services.APIGATEWAY) and api.awsgateway.enabled():
         api.awsgateway.writerelease(releases_dict_write)
     else:
         mygit.releases.write_git_release(releases_dict_write["version"], releases_dict_write["branches"])

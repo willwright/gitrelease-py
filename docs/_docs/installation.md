@@ -59,6 +59,30 @@ Or add the path to the installation directory to the PATH environment variable.
 ```
 ~ echo 'export PATH="$HOME/gitrelease:$PATH"' >> ~/.zshrc
 ```
+
+```
+➜  ~ gitrelease
+Usage: gitrelease [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  append    Merge branches to current release without incrementing releaese...
+  checkout
+  config    Set credentials for service integrations
+  deploy    Merge the current release candidate into the chosen ENVIRONMENT...
+  feature   Add a feature to the release.
+  init      Initialize a release.
+  jira      Updates the branches in this release from JIRA or updates JIRA...
+  next      Create a new release candidate by merging branches.
+  prune     Prune the number of release candidates in the current version...
+  rm        Removes a branch from the release SEARCH: a needle to search
+            for...
+
+  roll      Create a new release candidate by merging branches.
+  status    Print out details about the current release candidate
+```
  
 ### Windows
 #### Git

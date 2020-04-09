@@ -12,8 +12,8 @@
       url: "docs/usage"
     - title: "Contributing"
       url: "docs/contributing"
-    - title: "Building"
-      url: "docs/building"
+    - title: "Build"
+      url: "docs/build"
     - title: "Getting Started"
       url: "docs/getting-started"
       children:

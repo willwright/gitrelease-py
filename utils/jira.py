@@ -1,6 +1,7 @@
-import click
 import copy
 from enum import Enum
+
+import click
 
 import api
 import mygit
@@ -18,18 +19,19 @@ def up():
 
     # Get all issues in project/version
     try:
-        issues_list = api.jira.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
+        issues_list = api.jiraapi.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
     except Exception as err:
         if 'missing-version' in err.args:
             try:
-                api.jira.create_fixversion(releases_dict_read["projectslug"], releases_dict_read["version"])
+                api.jiraapi.create_fixversion(releases_dict_read["projectslug"], releases_dict_read["version"])
             except Exception:
                 return
             finally:
                 click.secho("fixVersion: {} created for project: {}".format(releases_dict_read["version"],
                                                                             releases_dict_read["projectslug"]),
                             fg='green')
-                issues_list = api.jira.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
+                issues_list = api.jiraapi.search_issues(releases_dict_read["projectslug"],
+                                                        releases_dict_read["version"])
 
         else:
             click.secho(err, fg='red')
@@ -51,7 +53,7 @@ def up():
             choice = click.prompt("Selection", type=click.IntRange(0, 2), default=0)
             if choice == 0:
                 try:
-                    api.jira.add_fixveresion(helper.parse_jira_key(branch), releases_dict_read["version"])
+                    api.jiraapi.add_fixveresion(helper.parse_jira_key(branch), releases_dict_read["version"])
                     click.secho("{}{}".format((branch + " ").ljust(60, '='), "> ADDED"), fg='green')
                 except Exception:
                     pass
@@ -74,7 +76,7 @@ def down():
 
     # Get all issues in project/version
     try:
-        issues_list = api.jira.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
+        issues_list = api.jiraapi.search_issues(releases_dict_read["projectslug"], releases_dict_read["version"])
     except Exception as err:
         if 'missing-version' in err.args:
             click.secho(err, fg='red')
@@ -119,7 +121,7 @@ def down():
             elif choice == 1:
                 # Remove from JIRA
                 try:
-                    api.jira.delete_fixversion(issue, releases_dict_read["version"])
+                    api.jiraapi.delete_fixversion(issue, releases_dict_read["version"])
                     click.secho("{}{}".format((issue + " ").ljust(60, '='), "> REMOVED"), fg='green')
                 except Exception:
                     pass

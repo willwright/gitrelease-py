@@ -1,5 +1,3 @@
-
-
 def read_git_release(version):
     branches_list = []
     with open("releases/release-v{}".format(version), "r") as stream:

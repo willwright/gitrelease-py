@@ -104,3 +104,41 @@ pyinstaller --onefile -n gitrelease --hiddenimport click,requests,PyYAML main.py
 ```
 
 You should see a bunch of output in your console and a single file (`gitrelease.exe`) in the `dist` folder
+
+## Ubuntu
+Checkout the source code from github [willwright/gitrelease-py](https://github.com/willwright/gitrelease-py)
+
+Install python3.8
+```
+apt-get install python3.8
+```
+
+Change directory to checked out repo
+
+Create a virtual environment using python3.8
+```
+python3.8 -m venv venv
+```
+
+Activate the virtual environment
+```
+. venv/bin/activate
+```
+
+Test that the version of your virtual environment is correct
+```
+# python -V
+Python 3.8.1
+```
+
+Install dependencies
+```
+pip install pyinstaller click PyYAML requests
+```
+
+Build the distributable
+```
+pyinstaller --onefile -n gitrelease --hiddenimport click,requests,PyYAML main.py
+```
+
+You should see a bunch of output in your console and a single file (`gitrelease`) in the `dist` folder

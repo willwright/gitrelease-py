@@ -115,7 +115,7 @@ def slugExists(projectslug):
     return False
 
 
-def enabled() -> bool:
+def enabled():
     config_dict = utils.configuration.load()
     if not utils.configuration.hasService(utils.configuration.Services.APIGATEWAY) or "enabled" not in config_dict[
         utils.configuration.Services.APIGATEWAY.value]:

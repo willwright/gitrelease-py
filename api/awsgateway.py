@@ -1,9 +1,16 @@
-import json
-
 import click
+import json
 import requests
+from enum import Enum
 
 import utils.configuration
+
+APIGATEWAY_ENDPOINT = "https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/"
+
+
+class Mode(Enum):
+    DEVELOP = "develop"
+    PROD = "prod"
 
 
 def read_project(projectslug):
@@ -15,10 +22,13 @@ def read_project(projectslug):
     :return:
     """
     config_dict = utils.configuration.load()
-    response = requests.get(
-        "https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}".format(projectslug),
-        auth=(config_dict["apigateway"]["username"], config_dict["apigateway"]["password"])
-    )
+
+    endpoint = APIGATEWAY_ENDPOINT + config_dict[utils.configuration.Services.APIGATEWAY.value][
+        "mode"] + "/project/{0}"
+    response = requests.get(endpoint.format(projectslug),
+                            auth=(config_dict[utils.configuration.Services.APIGATEWAY.value]["username"],
+                                  config_dict[utils.configuration.Services.APIGATEWAY.value]["password"])
+                            )
 
     if response.status_code != 200:
         # Replace this with raise error
@@ -36,11 +46,13 @@ def read_candidate(release_dict):
     projectslug = release_dict["projectslug"]
     version = release_dict["version"]
     candidate = release_dict["candidate"]
-    response = requests.get(
-        "https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}/version/{1}/candidate/{2}".format(
-            projectslug, version, candidate),
-        auth=(config_dict["apigateway"]["username"], config_dict["apigateway"]["password"])
-    )
+
+    endpoint = APIGATEWAY_ENDPOINT + config_dict[utils.configuration.Services.APIGATEWAY.value][
+        "mode"] + "/project/{0}/version/{1}/candidate/{2}"
+    response = requests.get(endpoint.format(projectslug, version, candidate),
+                            auth=(config_dict[utils.configuration.Services.APIGATEWAY.value]["username"],
+                                  config_dict[utils.configuration.Services.APIGATEWAY.value]["password"])
+                            )
 
     if response.status_code != 200:
         # Replace this with raise error
@@ -54,14 +66,15 @@ def read_candidate(release_dict):
     pass
 
 
-def read_candidate(projectslug, version, candidate):
+def read_candidate_from_parts(projectslug, version, candidate):
     config_dict = utils.configuration.load()
 
-    response = requests.get(
-        "https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{0}/version/{1}/candidate/{2}".format(
-            projectslug, version, candidate),
-        auth=(config_dict["apigateway"]["username"], config_dict["apigateway"]["password"])
-    )
+    endpoint = APIGATEWAY_ENDPOINT + config_dict[utils.configuration.Services.APIGATEWAY.value][
+        "mode"] + "/project/{0}/version/{1}/candidate/{2}"
+    response = requests.get(endpoint.format(projectslug, version, candidate),
+                            auth=(config_dict[utils.configuration.Services.APIGATEWAY.value]["username"],
+                                  config_dict[utils.configuration.Services.APIGATEWAY.value]["password"])
+                            )
 
     if response.status_code != 200:
         # Replace this with raise error
@@ -86,10 +99,13 @@ def writerelease(release_dict):
     # print(json.dumps(releases_dict, indent=4, sort_keys=True))
     config_dict = utils.configuration.load()
 
-    response = requests.post('https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/release',
+    endpoint = APIGATEWAY_ENDPOINT + config_dict[utils.configuration.Services.APIGATEWAY.value][
+        "mode"] + "/release"
+    response = requests.post(endpoint,
                              data=json.dumps(release_dict),
                              headers={'Content-Type': 'application/json'},
-                             auth=(config_dict["apigateway"]["username"], config_dict["apigateway"]["password"])
+                             auth=(config_dict[utils.configuration.Services.APIGATEWAY.value]["username"],
+                                   config_dict[utils.configuration.Services.APIGATEWAY.value]["password"])
                              )
 
     if response.status_code != 200:
@@ -99,10 +115,13 @@ def writerelease(release_dict):
 
 def slugExists(projectslug):
     config_dict = utils.configuration.load()
-    response = requests.get(
-        'https://5idtbmykhf.execute-api.us-west-1.amazonaws.com/develop/project/{:s}'.format(projectslug),
-        auth=(config_dict["apigateway"]["username"], config_dict["apigateway"]["password"])
-    )
+
+    endpoint = APIGATEWAY_ENDPOINT + config_dict[utils.configuration.Services.APIGATEWAY.value][
+        "mode"] + "/project/{:s}"
+    response = requests.get(endpoint.format(projectslug),
+                            auth=(config_dict[utils.configuration.Services.APIGATEWAY.value]["username"],
+                                  config_dict[utils.configuration.Services.APIGATEWAY.value]["password"])
+                            )
     if response.status_code != 200:
         # Replace this with raise error
         print("ApiCall Error")

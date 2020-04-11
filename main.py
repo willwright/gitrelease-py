@@ -281,7 +281,7 @@ def checkout(branches):
                 version = utils.helper.get_version_part(branches_list[key])
                 candidate = utils.helper.get_candidate_part(branches_list[key])
 
-                releaseDynamo = api.awsgateway.read_candidate(release_dict['projectslug'], version, candidate)
+                releaseDynamo = api.awsgateway.read_candidate_from_parts(release_dict['projectslug'], version, candidate)
                 if "Item" in releaseDynamo and "branches" in releaseDynamo["Item"]:
                     for branch in releaseDynamo["Item"]["branches"]:
                         click.secho("     --{}".format(branch), fg="blue")
@@ -748,6 +748,16 @@ def config(service):
 
         if not input == default:
             config_dict_write[utils.configuration.Services.APIGATEWAY.value]["password"] = input.strip()
+
+        # Set: mode
+        if utils.configuration.Services.APIGATEWAY.value in config_dict_read and "mode" in config_dict_read[
+            utils.configuration.Services.APIGATEWAY.value]:
+            default = config_dict_read[utils.configuration.Services.APIGATEWAY.value]["mode"]
+        else:
+            default = None
+
+        input = click.prompt("ApiGateway mode", default=default, type=click.Choice([api.awsgateway.Mode.DEVELOP.value, api.awsgateway.Mode.PROD.value]))
+        config_dict_write[utils.configuration.Services.APIGATEWAY.value]["mode"] = input.strip()
 
     utils.configuration.save(config_dict_write)
 

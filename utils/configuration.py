@@ -1,7 +1,6 @@
 import os
-from enum import Enum
-
 import yaml
+from enum import Enum
 
 CONFIG_DIR = ".gitrelease"
 CONFIG_FILE = "config.yaml"

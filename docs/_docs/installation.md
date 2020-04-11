@@ -84,6 +84,19 @@ Commands:
   status    Print out details about the current release candidate
 ```
  
+### WSL (Windows Linux Sub-System) - Ubuntu
+#### Git
+Install Git [Git SCM](https://git-scm.com/download/)
+
+When the installer runs choose "Git from the command line and also from 3rd-party software"
+
+Test that git is locatable from the command line
+```
+PS C:\Users\Will> git --version
+git version 2.26.0.windows.1
+```
+#### gitrelease
+
 ### Windows
 #### Git
 Install Git [Git SCM](https://git-scm.com/download/)
@@ -100,6 +113,54 @@ Download the latest executeable from the source below.
 
 Run the executeable directly
  
- `PS C:\Users\Will\Downloads\gitrelease.exe`
+`PS C:\Users\Will\gitrelease\gitrelease.exe`
  
- or add the path to the installation directory to the PATH environment variable.
+Or add the path to the installation directory to the PATH environment variable.
+
+Press windows key and search for "environment"
+
+Choose "Edit the System Environment"
+
+![Environment]({{ site.baseurl }}/assets/img/installation/environment.png)
+
+Choose Environment Variables...
+
+Choose Path
+
+Click Edit...
+
+![Path]({{ site.baseurl }}/assets/img/installation/path.png)
+
+Click New
+
+Add you're installation directory
+
+![Edit Path]({{ site.baseurl }}/assets/img/installation/edit-path.png)
+
+Click OK
+
+Test that the application is available from the terminal
+
+```
+PS C:\Users\Will> gitrelease
+Usage: gitrelease.exe [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  append    Merge branches to current release without incrementing releaese...
+  checkout
+  config    Set credentials for service integrations
+  deploy    Merge the current release candidate into the chosen ENVIRONMENT...
+  feature   Add a feature to the release.
+  init      Initialize a release.
+  jira      Updates the branches in this release from JIRA or updates JIRA...
+  next      Create a new release candidate by merging branches.
+  prune     Prune the number of release candidates in the current version...
+  rm        Removes a branch from the release SEARCH: a needle to search
+            for...
+
+  roll      Create a new release candidate by merging branches.
+  status    Print out details about the current release candidate
+```

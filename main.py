@@ -594,10 +594,18 @@ def prune(keepbranches):
 
     print()
     # Get new list of origin branches
-    branches_list = utils.helper.find_branch_by_query("origin/release-v{}".format(release_dict['version']))
+    if len(branches_list) <= 0:
+        click.echo("No Release Branches found in repo")
+
+    # Remove "remotes/" from the beginning of the branch name
+    branches_list = map(lambda x: x.replace("remotes/", "", 1), branches_list)
+
+    # Remove "origin/" from the beginning of the branch name
+    branches_list = map(lambda x: x.replace("origin/", "", 1), branches_list)
 
     # Sort the branches by version, candidate
-    branches_list = sorted(branches_list, key=utils.helper.release_branch_comp, reverse=False)
+    branches_list = utils.helper.sort_branches(list(branches_list))
+
     for branch in branches_list:
         print(branch)
 

@@ -4,7 +4,7 @@ description: How to install gitrelease-py
 ---
 
 # Installation
-Distribution packages are made available for Mac and Windows.
+Distribution packages are made available for Mac, Ubuntu, and Windows.
 
 ## Latest
 
@@ -25,7 +25,7 @@ git version 2.21.1 (Apple Git-122.3)
 ```
 
 #### gitrelease
-Download the latest executable from the source below.
+Download the latest executable from the source above.
 
 Run the executable directly
  

@@ -4,8 +4,8 @@
     - title: "Installation"
       url: "docs/installation"
       children:
-        - title: "Distributatble"
-          url: "docs/installation/distibutable"
+        - title: "Distributable"
+          url: "docs/installation/distributable"
         - title: "Source"
           url: "docs/installation/source"
     - title: "Usage"

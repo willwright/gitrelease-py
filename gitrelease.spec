@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['main.py'],
-             pathex=['/mnt/f/gitrelease-py'],
+             pathex=['F:\\gitrelease-py'],
              binaries=[],
              datas=[],
              hiddenimports=['click,requests,PyYAML'],

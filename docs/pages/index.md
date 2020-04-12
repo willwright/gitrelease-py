@@ -19,5 +19,5 @@ will rebuild the release branch by iteratively merging the branches defined in t
  - Roll release from master or from previous release candidate
 
 
-For features, getting started with development, see the {% include doc.html name="Getting Started" path="getting-started" %} page. Would you like to request a feature or contribute?
+Would you like to request a feature or contribute?
 [Open an issue]({{ site.repo }}/issues)

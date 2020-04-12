@@ -3,7 +3,7 @@ title: Distributable
 description: All distributables of gitrelease
 ---
 
-#Versions
+# Versions
 ## v1.0.0
 Mac: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/mac/1.0.0/gitrelease)
 

@@ -8,7 +8,9 @@ Distribution packages are made available for Mac, Ubuntu, and Windows.
 
 ## Latest
 Mac: [gitrelease-1.0.0](https://gitrelease-py.s3-us-west-1.amazonaws.com/mac/1.0.0/gitrelease)
+
 Ubuntu: [gitrelease-1.0.0](https://gitrelease-py.s3-us-west-1.amazonaws.com/ubuntu/1.0.0/gitrelease)
+
 Windows: [gitrelease-1.0.0](https://gitrelease-py.s3-us-west-1.amazonaws.com/windows/1.0.0/gitrelease.exe)
 
 ### Prerequisites

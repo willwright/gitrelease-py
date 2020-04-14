@@ -12,12 +12,19 @@ permalink: /
 and management of ephemeral release branches. Branches can be added and removed, at will, from a release and the CLI 
 will rebuild the release branch by iteratively merging the branches defined in the release. 
 
-## Features
+## Features Notes
 
- - Add and remove branches by searching branch tree
- - JIRA integration
- - Roll release from master or from previous release candidate
+**JIRA**
 
+You *will* need a JIRA API Token in order to use the JIRA integration. [JIRA Documentation](https://confluence.atlassian.com/cloud/api-tokens-938839638.html)
+
+**GITHUB**
+
+You *will* need a GitHub Bearer token in order to use the JIRA integration. [GitHub Documentation](https://github.com/settings/tokens)
+
+**AWIGateway**
+
+You *will* need API credentials to use the APIGateway.
 
 ## Contribute
 Would you like to request a feature or contribute?

@@ -19,5 +19,16 @@ will rebuild the release branch by iteratively merging the branches defined in t
  - Roll release from master or from previous release candidate
 
 
+## Contribute
 Would you like to request a feature or contribute?
 [Open an issue]({{ site.repo }}/issues)
+
+## Examples
+### Roll 
+{% include gitgraph-roll.html %}
+
+### Next
+{% include gitgraph-next.html %}
+
+### Append
+{% include gitgraph-append.html %}

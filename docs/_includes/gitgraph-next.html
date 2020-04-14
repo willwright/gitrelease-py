@@ -1,0 +1,48 @@
+<div id="graph-container-next"></div>
+<script>
+$(document).ready(function() {
+  // Get the graph container HTML element.
+  const graphContainer = document.getElementById("graph-container-next");
+
+  // Instantiate the graph.
+  const gitgraph = GitgraphJS.createGitgraph(graphContainer, {template: GitgraphJS.templateExtend("blackarrow", {
+    commit: {
+      message: {
+        displayHash: false,
+        displayAuthor: false,
+      }
+    }
+  })});
+
+  // Simulate git commands with Gitgraph API.
+  const master = gitgraph.branch("master");
+  master.commit("Initial commit").tag("v1.0.0");
+
+  const develop = gitgraph.branch({name: "develop", from: master});
+
+  const releasev100rc1 = gitgraph.branch({name: "release-v1.1.0-rc1", from: master});
+  releasev100rc1.commit("Release branch definition")
+
+  const git1 = gitgraph.branch({name: "feature/GIT-1", from: master});
+  git1.commit().commit().commit();
+
+  const git2 = gitgraph.branch({name: "feature/GIT-2", from: master});
+  git2.commit().commit().commit();
+
+  const git3 = gitgraph.branch({name: "feature/GIT-3", from: master});
+  git3.commit().commit().commit();
+
+  releasev100rc1.merge(git1);
+  releasev100rc1.merge(git2);
+  
+  const releasev100rc2 = gitgraph.branch({name: "release-v1.1.0-rc2", from: releasev100rc1});
+  releasev100rc2.commit("Release branch definition")
+
+  releasev100rc2.merge(git1);
+  releasev100rc2.merge(git2);
+  releasev100rc2.merge(git3);
+  
+  develop.merge(releasev100rc2);
+  master.merge(releasev100rc2).tag("v1.1.0");
+});
+</script>

@@ -20,6 +20,15 @@ def get_next_release_candidate():
 
 
 def most_digits(branch_list):
+    """
+    Returns the number of digits of the "longest" branch.
+    Given: v3.37.0-rc12, v3.38.0-rc1
+    Reduce to: 337012, 33801
+    Return: 6
+
+    :param branch_list:
+    :return:
+    """
     retval = 0
 
     for branch in branch_list:
@@ -31,7 +40,7 @@ def most_digits(branch_list):
         regex = re.search("\d+$", branch)
         candidate = regex.group()
 
-        item = version.replace(".", "")
+        item = "{}{}".format(version.replace(".", ""), candidate)
 
         if len(item) > retval:
             retval = len(item)
@@ -41,7 +50,6 @@ def most_digits(branch_list):
 
 def release_branch_comp(branch, length):
     branch.replace("remotes/origin/", "")
-    key = 0
 
     regex = re.search("[\d+\.]+\d+", branch)
     version = str(regex.group())
@@ -51,6 +59,7 @@ def release_branch_comp(branch, length):
 
     regex = re.search("\d+$", branch)
     candidate = str(regex.group())
+    candidate = candidate.ljust(length, "0")
 
     retval = version + candidate
 
@@ -66,8 +75,9 @@ def sort_branches(branches_list):
             current = release_branch_comp(branches_list[i], max_digits)
             next = release_branch_comp(branches_list[i + 1], max_digits)
             if current > next:
-                branches_list[i] = next
-                branches_list[i + 1] = current
+                tmp = branches_list[i]
+                branches_list[i] = branches_list[i + 1]
+                branches_list[i + 1] = tmp
                 sorted = False
                 continue
 

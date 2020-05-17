@@ -55,13 +55,13 @@ def release_branch_comp(branch, length):
     version = str(regex.group())
 
     version = version.replace(".", "")
-    version = version.ljust(length, "0")
+    version = version.rjust(length, "0")
 
     regex = re.search("\d+$", branch)
     candidate = str(regex.group())
-    candidate = candidate.ljust(length, "0")
+    candidate = candidate.rjust(length, "0")
 
-    retval = version + candidate
+    retval = "".join([version, candidate])
 
     return int(retval)
 
@@ -71,17 +71,13 @@ def sort_branches(branches_list):
 
     sorted = False
     while not sorted:
-        for i in range(0, len(branches_list) - 2):
+        sorted = True
+        for i in range(0, len(branches_list) - 1):
             current = release_branch_comp(branches_list[i], max_digits)
             next = release_branch_comp(branches_list[i + 1], max_digits)
             if current > next:
-                tmp = branches_list[i]
-                branches_list[i] = branches_list[i + 1]
-                branches_list[i + 1] = tmp
+                branches_list[i], branches_list[i+1] = branches_list[i+1], branches_list[i]
                 sorted = False
-                continue
-
-            sorted = True
 
     return branches_list
 

@@ -7,12 +7,12 @@ description: How to install gitrelease-py
 Distribution packages are made available for Mac, Ubuntu, and Windows.
 
 ## Latest
-### v1.0.1
-Mac: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/mac/1.0.1/gitrelease)
+### v1.0.2
+Mac: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/mac/1.0.2/gitrelease)
 
-Ubuntu: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/ubuntu/1.0.1/gitrelease)
+Ubuntu: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/ubuntu/1.0.2/gitrelease)
 
-Windows: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/windows/1.0.1/gitrelease.exe)
+Windows: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/windows/1.0.2/gitrelease.exe)
 
 ### Prerequisites
 * git

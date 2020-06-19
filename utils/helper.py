@@ -97,9 +97,13 @@ def get_current_checkout_branch():
 
 
 def parse_jira_key(branch):
-    reg_ex = re.search("\/([A-Z])+-\d+", branch)
-    jira_key = reg_ex.group().replace("/", "", 1)
-    return jira_key
+    reg_ex = re.search("\/\w+-\d+", branch)
+    try: 
+        jira_key = reg_ex.group().replace("/", "", 1)
+    except:
+        return
+    
+    return jira_key.upper()
 
 
 def get_origin_branch_name(branch):

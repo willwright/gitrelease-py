@@ -76,7 +76,7 @@ def sort_branches(branches_list):
             current = release_branch_comp(branches_list[i], max_digits)
             next = release_branch_comp(branches_list[i + 1], max_digits)
             if current > next:
-                branches_list[i], branches_list[i+1] = branches_list[i+1], branches_list[i]
+                branches_list[i], branches_list[i + 1] = branches_list[i + 1], branches_list[i]
                 sorted = False
 
     return branches_list
@@ -98,11 +98,11 @@ def get_current_checkout_branch():
 
 def parse_jira_key(branch):
     reg_ex = re.search("\/\w+-\d+", branch)
-    try: 
+    try:
         jira_key = reg_ex.group().replace("/", "", 1)
     except:
         return
-    
+
     return jira_key.upper()
 
 
@@ -177,7 +177,6 @@ def find_feature(needle):
 
 
 def merge_branches(branches):
-    # sh.git.fetch("--all")
     subprocess.run(["git", "fetch", "--all"], stdout=sys.stdout, stderr=sys.stderr)
 
     for branch in branches:
@@ -185,7 +184,6 @@ def merge_branches(branches):
         print()
         print("Merging: " + branch)
         try:
-            # sh.git.merge("--no-ff", "--no-edit", branch, _err=sys.stderr, _out=sys.stdout)
             subprocess.run(["git", "merge", "--no-ff", "--no-edit", branch], stdout=sys.stdout, stderr=sys.stderr)
 
         except:
@@ -239,3 +237,22 @@ def get_candidate_part(release) -> str:
     regex = re.search("\d+$", release)
     candidate = regex.group()
     return candidate
+
+
+def is_branch_merged(branch, destination):
+    if not (branch and destination):
+        return False
+
+    branches = []
+    try:
+        result = subprocess.run(['git', 'branch', '-a', '--merged', destination], stdout=subprocess.PIPE)
+        branches = result.stdout.decode('utf-8').splitlines()
+        branches = [x.strip() for x in branches]
+    except:
+        pass
+
+    for haystack in branches:
+        if haystack.lower().find(branch.lower()) >= 0:
+            return True
+
+    return False

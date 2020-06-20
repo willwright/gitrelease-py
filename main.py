@@ -8,6 +8,7 @@ import click
 import api
 import mygit
 import utils
+import utils.helper
 
 
 @click.group()
@@ -40,8 +41,10 @@ def jira(direction):
 
 
 @cli.command()
+@click.option('-m', '--master', 'master', is_flag=True,
+              help="Remove branches from the release if they are already merged to master")
 @click.argument('search', type=str, required=False)
-def rm(search):
+def rm(master, search):
     """
     Removes a branch from the release
 
@@ -55,44 +58,91 @@ def rm(search):
         click.secho("No branches found", fg='red')
         return
 
-    print("Branches found:")
-    search_match_branch_index = []
-    for i in range(0, len(release_dict_read["branches"])):
-        if search and search in release_dict_read["branches"][i]:
-            click.secho("{}: {} <---".format(i, release_dict_read["branches"][i]), fg='blue')
-            search_match_branch_index.append(i)
-        else:
-            click.secho("{}: {}".format(i, release_dict_read["branches"][i]))
+    remove_candidates = []
+    if master:
+        # Loop over all the branches in the current revision
 
-    # If there is only one branch in the list to show, default the prompt to that branch
-    if len(search_match_branch_index) == 1:
-        default = search_match_branch_index[0]
+        # Test the branch to find out if it is in master or not
+
+        # Prompt the user to remove or not to remove the branch from the current release
+
+        for i in range(0, len(release_dict_read["branches"])):
+            if utils.helper.is_branch_merged(release_dict_read["branches"][i], 'master'):
+                remove_candidates.append(release_dict_read["branches"][i])
+
+        for branch in remove_candidates:
+            click.secho("{}{}".format((branch + " ").ljust(60, '='), "> MERGED"), fg='yellow')
+            print("0: Remove from local release")
+            print("1: Skip")
+            choice = click.prompt("Selection", type=click.IntRange(0, 1), default=0)
+
+            if choice == 0:
+                # Remove from local
+                branches = utils.helper.find_branch_by_query(branch)
+                if len(branches) <= 0:
+                    print("No branches found matching your query")
+                    print()
+                    continue
+
+                for i in range(0, len(branches)):
+                    print("{option}: {branch}".format(option=i, branch=branches[i]))
+
+                if len(branches) == 1:
+                    chosen_branch = click.prompt("Select Branch", type=int, default=0)
+                else:
+                    chosen_branch = click.prompt("Select Branch", type=click.IntRange(0, len(branches)))
+
+                print("Selected: {branch}".format(branch=branches[chosen_branch]))
+                release_dict_write["branches"].remove(branches[chosen_branch])
+                click.secho("{}{}".format((branches[chosen_branch] + " ").ljust(60, '='), "> REMOVED"), fg='green')
+
+            elif choice == 1:
+                # Skip
+                click.secho("{}{}".format((branch + " ").ljust(60, '='), "> SKIPPED"), fg='green')
+
+            else:
+                pass
+        print()
+
     else:
-        default = "x"
+        print("Branches found:")
+        search_match_branch_index = []
+        for i in range(0, len(release_dict_read["branches"])):
+            if search and search in release_dict_read["branches"][i]:
+                click.secho("{}: {} <---".format(i, release_dict_read["branches"][i]), fg='blue')
+                search_match_branch_index.append(i)
+            else:
+                click.secho("{}: {}".format(i, release_dict_read["branches"][i]))
 
-    choice = click.prompt("Select a branch to remove (x = cancel)", type=str, default=default)
-    try:
-        choice = int(choice)
-    except:
-        return
+        # If there is only one branch in the list to show, default the prompt to that branch
+        if len(search_match_branch_index) == 1:
+            default = search_match_branch_index[0]
+        else:
+            default = "x"
 
-    # Remove the FixVersion in JIRA
-    if utils.configuration.hasService(utils.configuration.Services.JIRA):
-        jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False),
-                                 default="y")
+        choice = click.prompt("Select a branch to remove (x = cancel)", type=str, default=default)
+        try:
+            choice = int(choice)
+        except:
+            return
 
-        if jira_send == "y":
-            jira_key = utils.helper.parse_jira_key(release_dict_read["branches"][choice])
-            api.jiraapi.delete_fixversion(jira_key, release_dict_read["version"])
+        # Remove the FixVersion in JIRA
+        if utils.configuration.hasService(utils.configuration.Services.JIRA):
+            jira_send = click.prompt("Update JIRA fixVersion", type=click.Choice(["y", "n"], case_sensitive=False),
+                                     default="y")
 
-    # Remove the branch from the Dictionary
-    del release_dict_write["branches"][choice]
+            if jira_send == "y":
+                jira_key = utils.helper.parse_jira_key(release_dict_read["branches"][choice])
+                api.jiraapi.delete_fixversion(jira_key, release_dict_read["version"])
+
+        # Remove the branch from the Dictionary
+        del release_dict_write["branches"][choice]
+
+        click.secho("Removed: {}".format(release_dict_read["branches"][choice]), fg='green')
+        print()
 
     # Write the dictionary to git-config
     mygit.config.write_config(release_dict_write)
-
-    click.secho("Removed: {}".format(release_dict_read["branches"][choice]), fg='green')
-    print()
 
     utils.helper.show_status()
 
@@ -281,7 +331,8 @@ def checkout(branches):
                 version = utils.helper.get_version_part(branches_list[key])
                 candidate = utils.helper.get_candidate_part(branches_list[key])
 
-                releaseDynamo = api.awsgateway.read_candidate_from_parts(release_dict['projectslug'], version, candidate)
+                releaseDynamo = api.awsgateway.read_candidate_from_parts(release_dict['projectslug'], version,
+                                                                         candidate)
                 if "Item" in releaseDynamo and "branches" in releaseDynamo["Item"]:
                     for branch in releaseDynamo["Item"]["branches"]:
                         click.secho("     --{}".format(branch), fg="blue")
@@ -756,7 +807,8 @@ def config(service):
         else:
             default = None
 
-        input = click.prompt("ApiGateway mode", default=default, type=click.Choice([api.awsgateway.Mode.DEVELOP.value, api.awsgateway.Mode.PROD.value]))
+        input = click.prompt("ApiGateway mode", default=default,
+                             type=click.Choice([api.awsgateway.Mode.DEVELOP.value, api.awsgateway.Mode.PROD.value]))
         config_dict_write[utils.configuration.Services.APIGATEWAY.value]["mode"] = input.strip()
 
     utils.configuration.save(config_dict_write)

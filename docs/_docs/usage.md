@@ -257,11 +257,6 @@ origin/origin/bugfix/REPO-3353
 origin/bugfix/REPO-2391-fixing-gift-card-add-twice-to-refund
 ```
 
-*Arguments*
-
-SEARCH
-: a needle to search for in branches haystack
-
 ## roll
 Create a new release candidate by merging branches. Release candidate starts from master.
 

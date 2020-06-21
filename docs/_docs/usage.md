@@ -199,7 +199,16 @@ Getting Release Branches...
 ## rm
 Remove a branch from the release.
 
-If no search argument is provided the user will be given a list of branches to choose from.
+*Options*
+
+`-m`, `--master`
+: Interactively remove branches from the local release that have already been merged to master
+
+*Arguments*
+
+SEARCH
+: for a branch in current release
+: If no search argument is provided the user will be given a list of branches to choose from.
 
 *Example*
 

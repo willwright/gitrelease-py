@@ -42,7 +42,7 @@ def up():
         print()
         found = False
         for issue in issues_list:
-            if helper.parse_jira_key(branch) in issue:
+            if helper.parse_jira_key(branch).lower() in issue.lower():
                 click.secho("{}{}".format((branch + " ").ljust(60, '='), "> FOUND"), fg='blue')
                 found = True
         if not found:
@@ -87,7 +87,7 @@ def down():
         print()
         found = False
         for branch in releases_dict_read["branches"]:
-            if issue in branch:
+            if issue.lower() in branch.lower():
                 click.secho("{}{}".format((branch + " ").ljust(60, '='), "> FOUND"), fg='blue')
                 found = True
 

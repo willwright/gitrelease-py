@@ -4,6 +4,15 @@ description: All distributables of gitrelease
 ---
 
 # Versions
+## v1.0.5
+Mac: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/mac/1.0.5/gitrelease)
+
+Ubuntu: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/ubuntu/1.0.5/gitrelease)
+
+Windows: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/windows/1.0.5/gitrelease.exe)
+### Change Log
+* Fixes a bug where branch and issue key where not matched to do case mismatch. Comparisson is now case insensitive.
+
 ## v1.0.4
 Mac: [gitrelease](https://gitrelease-py.s3-us-west-1.amazonaws.com/mac/1.0.4/gitrelease)
 

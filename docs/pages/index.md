@@ -20,7 +20,7 @@ You *will* need a JIRA API Token in order to use the JIRA integration. [JIRA Doc
 
 **GITHUB**
 
-You *will* need a GitHub Bearer token in order to use the JIRA integration. [GitHub Documentation](https://github.com/settings/tokens)
+You *will* need a GitHub Bearer token in order to use the GITHUB integration. [GitHub Documentation](https://github.com/settings/tokens)
 
 **AWIGateway**
 
